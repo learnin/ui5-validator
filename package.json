@@ -1,0 +1,21 @@
+{
+  "name": "ui5-lib-validator",
+  "version": "0.1.0",
+  "description": "Validator library for OpenUI5 or SAPUI5.",
+  "scripts": {
+    "build": "ui5 build --all"
+  },
+  "keywords": [
+    "ui5",
+    "openui5",
+    "sapui5",
+    "validator"
+  ],
+  "author": "Manabu Inoue",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/learnin/ui5-lib-validator",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/learnin/ui5-lib-validator.git"
+  }
+}

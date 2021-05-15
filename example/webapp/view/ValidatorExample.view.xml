@@ -1,0 +1,210 @@
+<mvc:View
+	controllerName="com.example.example01.controller.ValidatorExample"
+	xmlns="sap.m"
+	xmlns:uxap="sap.uxap"
+	xmlns:l="sap.ui.layout"
+	xmlns:core="sap.ui.core"
+	xmlns:forms="sap.ui.layout.form"
+	xmlns:mvc="sap.ui.core.mvc"
+	xmlns:u="sap.ui.unified"
+	xmlns:table="sap.ui.table"
+	xmlns:fwc="fw.control">
+	<Page
+		title="Validator Example"
+		showNavButton="true"
+		navButtonPress=".onNavBack">
+		<uxap:ObjectPageLayout upperCaseAnchorBar="false">
+			<uxap:ObjectPageSection titleUppercase="false" title="In the SimpleForm">
+				<uxap:ObjectPageSubSection>
+					<forms:SimpleForm layout="ColumnLayout" columnsM="2" columnsL="3" columnsXL="4" editable="true">
+						<!-- SimpleForm 内の場合、labelFor プロパティがない Label でも Label の required により必須チェックが可能 -->
+						<!-- 入力系コントロールには required プロパティがないものもあるので、基本的には SimpleForm を使った方が楽 -->
+						<Label text="Required label in Form" required="true" />
+						<Input value="{inForm>/requiredLabelInput}" />
+
+						<Label text="Required Input in Form" />
+						<Input value="{inForm>/requiredInput}" required="true" />
+
+						<Label text="Required MaskInput in Form (Numeric only)" />
+						<MaskInput mask="999999" value="{inForm>/requiredMaskInput}" required="true" />
+
+						<Label text="Required Select in Form" />
+						<Select items="{inForm>/requiredSelect}" selectedKey="{inForm>/selectedKeyOfRequiredSelect}" required="true">
+							<core:Item key="{inForm>value}" text="{inForm>text}" />
+						</Select>
+
+						<Label text="Required RadioButton in Form. Note: Validator can't support multiple RadioButtons without RadioButtonGroup. " required="true" />
+						<RadioButton groupName="requiredRadioInForm" text="{inForm>/requiredRadio1}" selected="{inForm>/selectedOfRequiredRadio1}" />
+
+						<Label text="Required RadioButtonGroup in Form" required="true" />
+						<RadioButtonGroup columns="2" selectedIndex="{inForm>/selectedIndexOfRequiredRadioGroup}">
+							<RadioButton text="{inForm>/requiredRadioGroup1}" />
+							<RadioButton text="{inForm>/requiredRadioGroup2}" />
+						</RadioButtonGroup>
+
+						<Label text="Required CheckBox in Form. Note: Validator can't support multiple CheckBoxes. Only one CheckBox is supported." required="true" />
+						<CheckBox text="text1" selected="{inForm>/selectedOfRequiredCheckBox}" />
+
+						<Label text="Required DatePicker in Form" />
+						<DatePicker dateValue="{inForm>/requiredDatePicker}" required="true"/>
+
+						<Label text="Required TimePicker in Form" />
+						<TimePicker dateValue="{inForm>/requiredTimePicker}" required="true"/>
+
+						<Label text="Required ComboBox in Form" />
+						<ComboBox items="{inForm>/requiredComboBox}" selectedKey="{inForm>/selectedKeyOfRequiredComboBox}" required="true">
+							<core:Item key="{inForm>value}" text="{inForm>text}" />
+						</ComboBox>
+
+						<Label text="Required MultiComboBox in Form" />
+						<MultiComboBox items="{inForm>/requiredMultiComboBox}" selectedKeys="{inForm>/selectedKeyOfRequiredMultiComboBox}" required="true">
+							<core:Item key="{inForm>value}" text="{inForm>text}" />
+						</MultiComboBox>
+
+						<Label text="Required TextArea in Form" />
+						<TextArea value="{inForm>/requiredTextArea}" required="true" />
+
+						<Label text="Required FileUploader in Form" labelFor="requiredFileUploaderInForm" required="true" />
+						<u:FileUploader id="requiredFileUploaderInForm" value="{inForm>/requiredFileUploader}" sendXHR="true" />
+
+						<Label text="Required RatingIndicator in Form. Note: setValueState がないので赤くはならない。" labelFor="requiredRatingIndicatorInForm" required="true" />
+						<RatingIndicator id="requiredRatingIndicatorInForm" value="{inForm>/requiredRatingIndicator}" />
+
+						<Label text="Required SearchField in Form. Note: setValueState がないので赤くはならない。" labelFor="requiredSearchFieldInForm" required="true" />
+						<SearchField id="requiredSearchFieldInForm" value="{inForm>/requiredSearchField}" />
+
+						<!-- Calendar は sap.ui.core.IFormContent を実装していないので SimpleForm 内に置くのはNG -->
+					</forms:SimpleForm>
+				</uxap:ObjectPageSubSection>
+			</uxap:ObjectPageSection>
+
+			<uxap:ObjectPageSection titleUppercase="false" title="Out of the SimpleForm">
+				<uxap:ObjectPageSubSection>
+					<VBox>
+						<Label text="Required Input out Form" labelFor="requiredInputOutForm" />
+						<Input id="requiredInputOutForm" value="{outForm>/requiredInput}" required="true" />
+					</VBox>
+					<VBox>
+						<Label text="Required Calendar out Form" labelFor="requiredCalendarOutForm" required="true" />
+						<u:Calendar id="requiredCalendarOutForm" selectedDates="{outForm>/requiredCalendar}">
+							<u:selectedDates>
+								<u:DateRange startDate="{outForm>startDate}" />
+							</u:selectedDates>
+						</u:Calendar>
+					</VBox>
+					<VBox>
+						<Label text="Required CalendarDateInterval out Form" labelFor="requiredCalendarDateIntervalOutForm" required="true" />
+						<u:CalendarDateInterval id="requiredCalendarDateIntervalOutForm" selectedDates="{outForm>/requiredCalendarDateInterval}">
+							<u:selectedDates>
+								<u:DateRange startDate="{outForm>startDate}" />
+							</u:selectedDates>
+						</u:CalendarDateInterval>
+					</VBox>
+				</uxap:ObjectPageSubSection>
+			</uxap:ObjectPageSection>
+
+			<uxap:ObjectPageSection titleUppercase="false" title="With UI5 standard constraints">
+				<uxap:ObjectPageSubSection>
+					<forms:SimpleForm layout="ColumnLayout" columnsM="2" columnsL="3" columnsXL="4" editable="true">
+						<Label text="Required Input MaxLength 5" />
+						<Input value="{
+							path: 'withUI5Validator>/requiredInput',
+							type: 'sap.ui.model.type.String',
+							constraints: {
+								maxLength: 5
+							}}"
+							required="true" />
+					</forms:SimpleForm>
+				</uxap:ObjectPageSubSection>
+			</uxap:ObjectPageSection>
+
+			<uxap:ObjectPageSection titleUppercase="false" title="In the Table">
+				<uxap:ObjectPageSubSection>
+					<table:Table rows="{inGridTable>/rows}">
+						<table:Column label="Required Input string label in GridTable">
+							<table:template>
+								<Input id="requiredInputStringLabelInGridTable" value="{inGridTable>requiredInputStringLabel}" required="true" />
+							</table:template>
+						</table:Column>
+						<table:Column>
+							<Label text="Required Input Label in GridTable" labelFor="requiredInputLabelInGridTable" />
+							<table:template>
+								<Input id="requiredInputLabelInGridTable" value="{inGridTable>requiredInputLabel}" required="true" />
+							</table:template>
+						</table:Column>
+					</table:Table>
+					<Table items="{inResponsiveTable>/items}">
+						<columns>
+							<Column>
+								<Text text="Required Input in ResponsiveTable" />
+							</Column>
+							<Column>
+								<Text text="Required Input in ResponsiveTable2" />
+							</Column>
+						</columns>
+						<items>
+							<ColumnListItem>
+								<Input value="{inResponsiveTable>requiredInput}" required="true" />
+								<Input value="{inResponsiveTable>requiredInput2}" required="true" />
+							</ColumnListItem>
+						</items>
+					</Table>
+				</uxap:ObjectPageSubSection>
+			</uxap:ObjectPageSection>
+
+			<uxap:ObjectPageSection titleUppercase="false" title="Custom validation">
+				<uxap:ObjectPageSubSection>
+					<VBox>
+						<VBox>
+							<Label text="Required CheckBox out Form (with Value)" labelFor="requiredCheckBoxCustom" required="true" />
+							<HBox id="requiredCheckBoxCustom" items="{custom>/requiredCheckBox}">
+								<CheckBox text="{custom>text}" />
+							</HBox>
+						</VBox>
+						<VBox>
+							<Label text="Required CheckBox 1 to 3" labelFor="requiredCheckBoxCustom1to3" required="true" />
+							<HBox id="requiredCheckBoxCustom1to3" items="{custom>/requiredCheckBox1to3}">
+								<CheckBox text="{custom>text}" />
+							</HBox>
+						</VBox>
+					</VBox>
+				</uxap:ObjectPageSubSection>
+			</uxap:ObjectPageSection>
+
+			<uxap:ObjectPageSection titleUppercase="false" title="Correlation controls validation">
+				<uxap:ObjectPageSubSection>
+					<forms:SimpleForm layout="ColumnLayout" columnsM="2" columnsL="3" columnsXL="4" editable="true">
+						<Label text="From date" />
+						<DatePicker id="fromDate" dateValue="{correlation>/fromDate}" required="true" />
+						<Label text="To date" />
+						<DatePicker id="toDate" dateValue="{correlation>/toDate}" required="true" />
+					</forms:SimpleForm>
+
+					<VBox>
+						<Label text="Required RadioButtonGroup" labelFor="correlationRequiredRadioGroup" required="true" />
+						<RadioButtonGroup id="correlationRequiredRadioGroup" columns="1" selectedIndex="{correlation>/selectedIndexOfRequiredRadioGroup}">
+							<RadioButton text="{correlation>/requiredRadioGroup1}" />
+							<RadioButton text="{correlation>/requiredRadioGroup2}" />
+							<RadioButton text="{correlation>/requiredRadioGroup3}" />
+						</RadioButtonGroup>
+						<HBox>
+							<VBox width="3rem" />
+							<VBox>
+								<Label text="Required input when select other" labelFor="correlationRequiredRadioGroup3Input" />
+								<Input id="correlationRequiredRadioGroup3Input" value="{correlation>/requiredRadioGroup3Input}" />
+							</VBox>
+						</HBox>
+					</VBox>
+				</uxap:ObjectPageSubSection>
+			</uxap:ObjectPageSection>
+		</uxap:ObjectPageLayout>
+		<footer>
+            <Toolbar>
+				<fwc:MessagePopoverButton/>
+				<ToolbarSpacer/>
+				<Button type="Emphasized" text="Validate" press=".onValidate"/>
+				<Button text="Clear Validator Errors" press=".onClearErrors"/>
+            </Toolbar>
+        </footer>
+	</Page>
+</mvc:View>
