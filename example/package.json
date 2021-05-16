@@ -1,8 +1,8 @@
 {
-	"name": "ui5-lib-validator-example",
+	"name": "ui5-validator-example",
 	"version": "0.1.0",
 	"private": true,
-	"description": "Example application to showcase the consumption of ui5-lib-validator.",
+	"description": "Example application to showcase the consumption of @learnin/ui5-validator.",
     "author": "Manabu Inoue",
     "license": "Apache-2.0",
 	"scripts": {
@@ -23,12 +23,12 @@
 		"@sap/ux-ui5-tooling": "1"
 	},
     "dependencies": {
-        "ui5-lib-validator": "0.1.0"
+        "@learnin/ui5-validator": "0.1.0"
     },
 	"ui5": {
 		"dependencies": [
 			"@sap/ux-ui5-tooling",
-            "ui5-lib-validator"
+            "@learnin/ui5-validator"
 		]
 	}
 }

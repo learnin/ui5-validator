@@ -47,7 +47,7 @@ sap.ui.define([
 	 * @public
 	 * @class
 	 */
-	const Validator = BaseObject.extend("ui5.lib.validator.Validator", {
+	const Validator = BaseObject.extend("learnin.ui5.validator.Validator", {
 		/**
 		 * コンストラクタのオプションパラメータ
 		 * 
@@ -75,20 +75,20 @@ sap.ui.define([
 			 * 
 			 * @public
 			 */
-			this.RESOURCE_BUNDLE_KEY_REQUIRED_INPUT = "ui5.lib.validator.Validator.message.requiredInput";
+			this.RESOURCE_BUNDLE_KEY_REQUIRED_INPUT = "learnin.ui5.validator.Validator.message.requiredInput";
 			/**
 			 * 選択コントロールの必須バリデーションエラーメッセージのリソースバンドルキー
 			 * 
 			 * @public
 			 */
-			this.RESOURCE_BUNDLE_KEY_REQUIRED_SELECT = "ui5.lib.validator.Validator.message.requiredSelect";
+			this.RESOURCE_BUNDLE_KEY_REQUIRED_SELECT = "learnin.ui5.validator.Validator.message.requiredSelect";
 
 			/**
 			 * バリデーションエラーにより ValueState.Error をセットされたコントロールに付加する customData 属性のキー
 			 * 
 			 * @private
 			 */
-			this._CUSTOM_DATA_KEY_FOR_IS_SET_VALUE_STATE_ERROR = "ui5.lib.validator.Validator.IS_SET_VALUE_STATE_ERROR";
+			this._CUSTOM_DATA_KEY_FOR_IS_SET_VALUE_STATE_ERROR = "learnin.ui5.validator.Validator.IS_SET_VALUE_STATE_ERROR";
 
 			// バリデーション対象とするコントロールの aggregation 名
 			this._aTargetAggregations = [
@@ -194,8 +194,6 @@ sap.ui.define([
 			});
 		}
 
-		// TODO: Element.registry は他のビューの Element も含めて保持しているので画面数が多いアプリだとそれだけ遅くなるはずなので、
-		// oTargetRootControl から配下の Element を全部見ていった方がベターと思われる。
 		Element.registry.forEach((oElement, sId) => {
 			if (this._isSetValueStateError(oElement)) {
 				if (this._isChildOrEqualControlId(oElement, sTargetRootControlId)) {
@@ -290,7 +288,7 @@ sap.ui.define([
 			isGroupedTargetControls: false,
 			controlsMoreAttachValidator: null
 		};
-		const oParam = { ...oDefaultParam, ...mParameter };
+		const oParam = Object.assign({}, oDefaultParam, mParameter);
 
 		const fnValidateFunction = oValidatorInfo => {
 			const oTargetControlOrAControls = oValidatorInfo.targetControlOrControls;
@@ -405,7 +403,7 @@ sap.ui.define([
 			isGroupedTargetControls: false,
 			controlsMoreAttachValidator: null
 		};
-		const oParam = { ...oDefaultParam, ...mParameter };
+		const oParam = Object.assign({}, oDefaultParam, mParameter);
 
 		let sMessageTextOrAMessageTexts;
 		if (Array.isArray(oTargetControlOrAControls)) {
@@ -1097,8 +1095,6 @@ sap.ui.define([
 				(oControl.getSelected && oControl.getSelected()));
 		}
 		if (oControl.getSelectedIndex && oControl.getSelectedIndex() >= 0) {
-			// TODO: sap.m.RadioButtonGroupでselectedIndex のバインド値が null や undefined の場合 getSelectedIndex() は 0となる。
-			// また、選択肢に存在しない正数値の場合はその値になるので何らかの対応が必要
 			return false;
 		}
 		if (oControl.getSelectedDates) {
@@ -1313,7 +1309,7 @@ sap.ui.define([
 	 * @class
 	 * @private
 	 */
-	const _ValidatorMessage = Message.extend("ui5.lib.validator.Validator._ValidatorMessage", {
+	const _ValidatorMessage = Message.extend("learnin.ui5.validator.Validator._ValidatorMessage", {
 		constructor: function (mParameters) {
 			if (mParameters && Array.isArray(mParameters.target)) {
 				if (!Message.prototype.getTargets) {

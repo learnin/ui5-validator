@@ -1,11 +1,11 @@
 sap.ui.define([
 	"sap/ui/model/json/JSONModel",
 	"./BaseController",
-	"../validator/Validator"
+	"learnin/ui5/validator/Validator"
 ], function (JSONModel, BaseController, Validator) {
 	"use strict";
 
-	return BaseController.extend("com.example.example01.controller.ValidatorExample", {
+	return BaseController.extend("learnin.ui5.validator.example.controller.ValidatorExample", {
 		onInit: function () {
 			this.setModel(new JSONModel({
 				requiredLabelInput: "",
@@ -143,8 +143,6 @@ sap.ui.define([
 				}
 			);
 
-			// TODO: Fragment 上のコントロールのバリデーション
-
 			// 必須入力チェック以外のバリデーションは、UI5標準バリデーションと同様にフォーカスアウト時にエラー表示させる。
 			this._validator.registerValidator(
 				([oFromDate, oToDate]) => {
@@ -166,24 +164,6 @@ sap.ui.define([
 					controlsMoreAttachValidator: oView.byId("correlationRequiredRadioGroup")
 				}
 			);
-
-			// TODO: https://github.com/jquense/yup 使えないか？
-			// this._validator.builder()
-			// 	.target(oView.byId("toDate"))
-			// 	.isValid(oToDateControl => {
-			// 		const dFromDateValue = oView.byId("fromDate").getDateValue();
-			// 		const dToDateValue = oToDateControl.getDateValue();
-			// 		return !(dFromDateValue && dToDateValue && dFromDateValue.getTime() > dToDateValue.getTime());
-			// 	})
-			// 	.message("To date には From date 以降の日付を入力してください。")
-			// 	.after(oView.byId("toDate"))
-			// 	.build();
-
-			// this._validator.builder()
-			// 	.target(oView.byId("requiredCheckBoxCustom").getItems())
-			// 	.isValid(oControl => !(oControl.getItems().every(oCheckBox => !oCheckBox.getSelected())))
-			// 	.after(oView.byId("requiredCheckBoxCustom"))
-			// 	.required();
 		},
 		onValidate: function () {
 			const oView = this.getView();
@@ -199,7 +179,6 @@ sap.ui.define([
 		onClearErrors: function () {
 			this._validator.removeErrors(this.getView());
 			sap.ui.getCore().getMessageManager().removeAllMessages();
-			// this._validator.removeAttachedValidators(this.getView());
 		}
 	});
 });

@@ -1,13 +1,13 @@
 {
-    "_version": "1.12.0",
+    "_version": "1.17.0",
     "sap.app": {
-      "id": "ui5.lib.validator.example",
+      "id": "learnin.ui5.validator.example",
       "type": "application",
       "applicationVersion": {
         "version": "0.1.0"
       },
-      "title": "Example of ui5-lib-validator",
-      "description": "Example application to showcase the consumption of ui5-lib-validator."
+      "title": "Example of ui5-validator",
+      "description": "Example application to showcase the consumption of ui5-validator."
     },
     "sap.ui": {
       "technology": "UI5",
@@ -19,7 +19,7 @@
     },
     "sap.ui5": {
       "dependencies": {
-        "minUI5Version": "1.65.0",
+        "minUI5Version": "1.71.11",
         "libs": {
           "sap.m": {},
           "sap.ui.core": {}

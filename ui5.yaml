@@ -1,10 +1,10 @@
-specVersion: '2.2'
+specVersion: '2.3'
 metadata:
-  name: "ui5-lib-validator"
+  name: "ui5-lib-learnin.ui5.validator"
 type: library
 framework:
   name: OpenUI5
-  version: 1.86.3
+  version: 1.71.11
   libraries:
     - name: sap.ui.core
     - name: sap.m

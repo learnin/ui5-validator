@@ -1,5 +1,5 @@
 <mvc:View
-	controllerName="com.example.example01.controller.ValidatorExample"
+	controllerName="learnin.ui5.validator.example.controller.ValidatorExample"
 	xmlns="sap.m"
 	xmlns:uxap="sap.uxap"
 	xmlns:l="sap.ui.layout"

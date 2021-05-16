@@ -28,3 +28,4 @@ hs_err*
 .DS_Store
 
 _out/
+dist/

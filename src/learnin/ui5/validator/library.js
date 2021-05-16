@@ -3,7 +3,7 @@
  */
 
 /**
- * Initialization Code and shared classes of library ui5.lib.validator
+ * Initialization Code and shared classes of library learnin.ui5.validator
  */
  sap.ui.define([
     'sap/ui/core/library'
@@ -14,13 +14,13 @@
      * The UI5 Validator.
      *
      * @namespace
-     * @name ui5.lib.validator
+     * @name learnin.ui5.validator
      * @author 
      * @version ${version}
      * @public
      */
     return sap.ui.getCore().initLibrary({
-        name: "ui5.lib.validator",
+        name: "learnin.ui5.validator",
         version: "${version}",
         dependencies: [
             "sap.ui.core",
@@ -29,7 +29,7 @@
         types: [],
         interfaces: [],
         controls: [
-            "ui5.lib.validator.Validator"
+            "learnin.ui5.validator.Validator"
         ],
         elements: [],
         noLibraryCSS: true

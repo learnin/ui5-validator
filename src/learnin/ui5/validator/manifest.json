@@ -1,7 +1,7 @@
 {
-    "_version": "1.30.0",
+    "_version": "1.17.0",
     "sap.app": {
-        "id": "ui5.lib.validator",
+        "id": "learnin.ui5.validator",
         "type": "library",
         "applicationVersion": {
             "version": "${version}"
@@ -22,7 +22,7 @@
             "cozy": true
         },
         "dependencies": {
-            "minUI5Version": "1.86.3",
+            "minUI5Version": "1.71.11",
             "libs": {
                 "sap.ui.core": {},
                 "sap.m": {}
