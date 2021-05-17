@@ -3,32 +3,17 @@
 	"version": "0.1.0",
 	"private": true,
 	"description": "Example application to showcase the consumption of @learnin/ui5-validator.",
-    "author": "Manabu Inoue",
-    "license": "Apache-2.0",
+	"author": "Manabu Inoue",
+	"license": "Apache-2.0",
 	"scripts": {
 		"start": "ui5 serve -o index.html",
 		"build": "rimraf dist && ui5 build -a --include-task=generateManifestBundle generateCachebusterInfo"
 	},
-	"remarkConfig": {
-		"plugins": [
-			"remark-preset-lint-consistent"
-		]
-	},
 	"devDependencies": {
-		"rimraf": "3.0.0",
-		"@ui5/cli": "2.3.2",
-		"@ui5/fs": "2.0.1",
-		"@ui5/logger": "2.0.0",
-		"@sap/ux-specification": "latest",
-		"@sap/ux-ui5-tooling": "1"
+		"rimraf": "3.0.2",
+		"@ui5/cli": "^2.10.3"
 	},
-    "dependencies": {
-        "@learnin/ui5-validator": "0.1.0"
-    },
-	"ui5": {
-		"dependencies": [
-			"@sap/ux-ui5-tooling",
-            "@learnin/ui5-validator"
-		]
+	"dependencies": {
+		"@learnin/ui5-validator": "latest"
 	}
 }

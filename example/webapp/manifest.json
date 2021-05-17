@@ -18,6 +18,13 @@
       }
     },
     "sap.ui5": {
+      "handleValidation": true,
+        "rootView": {
+          "viewName": "learnin.ui5.validator.example.view.ValidatorExample",
+          "type": "XML",
+          "async": true,
+          "id": "app"
+      },
       "dependencies": {
         "minUI5Version": "1.71.11",
         "libs": {

@@ -15,7 +15,6 @@
      *
      * @namespace
      * @name learnin.ui5.validator
-     * @author 
      * @version ${version}
      * @public
      */
