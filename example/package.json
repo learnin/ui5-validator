@@ -14,6 +14,11 @@
 		"@ui5/cli": "^2.10.3"
 	},
 	"dependencies": {
-		"@learnin/ui5-validator": "latest"
+		"@learnin/ui5-validator": "0.1.2"
+	},
+	"ui5": {
+		"dependencies": [
+			"@learnin/ui5-validator"
+		]
 	}
 }
