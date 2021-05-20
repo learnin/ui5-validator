@@ -34,7 +34,7 @@
         }
       },
       "resourceRoots": {
-        "learnin.ui5.validator": "../node_modules/@learnin/ui5-validator/dist/resources/learnin/ui5/validator/"
+        "learnin.ui5.validator": "./libs/learnin/ui5/validator/"
       },
       "contentDensities": {
         "compact": true,

@@ -1,0 +1,32 @@
+{
+    "_version": "1.17.0",
+    "sap.app": {
+        "id": "learnin.ui5.validator",
+        "type": "library",
+        "applicationVersion": {
+            "version": "0.1.3"
+        },
+        "title": "UI5 Validator"
+    },
+    "sap.ui": {
+        "technology": "UI5",
+        "deviceTypes": {
+            "desktop": true,
+            "phone": true,
+            "tablet": true
+        }
+    },
+    "sap.ui5": {
+        "contentDensities": {
+            "compact": true,
+            "cozy": true
+        },
+        "dependencies": {
+            "minUI5Version": "1.71.11",
+            "libs": {
+                "sap.ui.core": {},
+                "sap.m": {}
+            }
+        }
+    }
+}

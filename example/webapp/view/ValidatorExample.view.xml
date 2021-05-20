@@ -203,7 +203,7 @@
 				</uxap:ObjectPageLayout>
 				<footer>
 					<Toolbar>
-						<fwc:MessagePopoverButton/>
+						<!-- <fwc:MessagePopoverButton/> -->
 						<ToolbarSpacer/>
 						<Button type="Emphasized" text="Validate" press=".onValidate"/>
 						<Button text="Clear Validator Errors" press=".onClearErrors"/>
