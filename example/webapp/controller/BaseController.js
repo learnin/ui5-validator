@@ -175,14 +175,14 @@ sap.ui.define([
 				draggable: true,
 				state: ValueState.Error,
 				beginButton: new Button({
-					text: this.getResourceBundle("fwI18n").getText("fw.label.cancel"),
+					text: this.getResourceBundle("i18n").getText("label.cancel"),
 					press: function () {
 						this.getParent().close();
 					}
 				}),
 				customHeader: new Bar({
 					contentLeft: oBackButton,
-					contentMiddle: new Text({ text: this.getResourceBundle("fwI18n").getText("fw.label.validationMessages") })
+					contentMiddle: new Text({ text: this.getResourceBundle("i18n").getText("label.validationMessages") })
 				}),
 				contentHeight: "400px",
 				contentWidth: "460px",
