@@ -134,7 +134,7 @@ sap.ui.define([
 					const selectedCheckBoxes = aCheckBoxes.filter(oCheckBox => oCheckBox.getSelected());
 					return 1 <= selectedCheckBoxes.length && selectedCheckBoxes.length <=3;
 				},
-				"1つ以上3つ以下で選択してください。",
+				this.getResourceText("message.selectOntToThree"),
 				oView.byId("requiredCheckBoxCustom1to3").getItems(),
 				oView.byId("requiredCheckBoxCustom1to3"),
 				{
@@ -151,7 +151,7 @@ sap.ui.define([
 					// 必須チェックは別でやっているのでここでエラーにするのは両方入力されていて値が不正な場合のみ
 					return !(dFromDateValue && dToDateValue && dFromDateValue.getTime() > dToDateValue.getTime());
 				},
-				["From date には To date 以前の日付を入力してください。", "To date には From date 以降の日付を入力してください。"],	// "From date と To dare の大小関係を正しく入力してください" も可能
+				[this.getResourceText("message.fromDateBeforeToDate"), this.getResourceText("message.toDateAfterFromDate")],	// "From date と To dare の大小関係を正しく入力してください" も可能
 				[oView.byId("fromDate"), oView.byId("toDate")],
 				oView.byId("toDate")
 			);
