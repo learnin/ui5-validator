@@ -177,9 +177,9 @@
 					<uxap:ObjectPageSection titleUppercase="false" title="Correlation controls validation">
 						<uxap:ObjectPageSubSection>
 							<forms:SimpleForm layout="ColumnLayout" columnsM="2" columnsL="3" columnsXL="4" editable="true">
-								<Label text="From date" />
+								<Label text="{i18n>label.startDate}" />
 								<DatePicker id="fromDate" dateValue="{correlation>/fromDate}" required="true" />
-								<Label text="To date" />
+								<Label text="{i18n>label.endDate}" />
 								<DatePicker id="toDate" dateValue="{correlation>/toDate}" required="true" />
 							</forms:SimpleForm>
 

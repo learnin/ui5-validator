@@ -134,7 +134,7 @@ sap.ui.define([
 					const selectedCheckBoxes = aCheckBoxes.filter(oCheckBox => oCheckBox.getSelected());
 					return 1 <= selectedCheckBoxes.length && selectedCheckBoxes.length <=3;
 				},
-				this.getResourceText("message.selectOntToThree"),
+				this.getResourceText("message.selectNToN", this.getResourceText("word.one"), this.getResourceText("word.three")),
 				oView.byId("requiredCheckBoxCustom1to3").getItems(),
 				oView.byId("requiredCheckBoxCustom1to3"),
 				{
@@ -146,12 +146,16 @@ sap.ui.define([
 			// 必須入力チェック以外のバリデーションは、UI5標準バリデーションと同様にフォーカスアウト時にエラー表示させる。
 			this._validator.registerValidator(
 				([oFromDate, oToDate]) => {
+					console.log("@@@@@@@");
 					const dFromDateValue = oFromDate.getDateValue();
 					const dToDateValue = oToDate.getDateValue();
 					// 必須チェックは別でやっているのでここでエラーにするのは両方入力されていて値が不正な場合のみ
 					return !(dFromDateValue && dToDateValue && dFromDateValue.getTime() > dToDateValue.getTime());
 				},
-				[this.getResourceText("message.fromDateBeforeToDate"), this.getResourceText("message.toDateAfterFromDate")],	// "From date と To dare の大小関係を正しく入力してください" も可能
+				[
+					this.getResourceText("message.dateBeforeDate", this.getResourceText("label.startDate"), this.getResourceText("label.endDate")),
+					this.getResourceText("message.dateAfterDate", this.getResourceText("label.endDate"), this.getResourceText("label.startDate"))
+				],	// "From date と To dare の大小関係を正しく入力してください" も可能
 				[oView.byId("fromDate"), oView.byId("toDate")],
 				oView.byId("toDate")
 			);

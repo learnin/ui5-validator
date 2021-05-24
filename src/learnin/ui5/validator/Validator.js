@@ -617,7 +617,7 @@ sap.ui.define([
 			return;
 		}
 		const sControlId = oControl.getId();
-		if (this._isAttachedNotRegisteredValidator(sControlId) || this._isAttachedRegisteredValidator(sControlId)) {
+		if (this._isAttachedNotRegisteredValidator(sControlId)) {
 			return;
 		}
 		const sMessageText = this._getRequiredErrorMessageTextByControl(oControl);
@@ -660,7 +660,7 @@ sap.ui.define([
 			const oControl = aControls[i];
 			const sControlId = oControl.getId();
 
-			if (this._isAttachedNotRegisteredValidator(sControlId) || this._isAttachedRegisteredValidator(sControlId)) {
+			if (this._isAttachedRegisteredValidator(sControlId)) {
 				continue;
 			}
 			let sMessageText;
@@ -699,7 +699,7 @@ sap.ui.define([
 				for (let j = 0; j < aControlsMoreAttachValidator.length; j++) {
 					const oControlMore = aControlsMoreAttachValidator[j];
 					const sControlMoreId = oControlMore.getId();
-					if (this._isAttachedNotRegisteredValidator(sControlMoreId) || this._isAttachedRegisteredValidator(sControlMoreId)) {
+					if (this._isAttachedRegisteredValidator(sControlMoreId)) {
 						continue;
 					}
 					if (oControlMore.attachSelectionFinish) {
