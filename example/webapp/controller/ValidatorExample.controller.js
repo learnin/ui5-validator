@@ -146,7 +146,6 @@ sap.ui.define([
 			// 必須入力チェック以外のバリデーションは、UI5標準バリデーションと同様にフォーカスアウト時にエラー表示させる。
 			this._validator.registerValidator(
 				([oFromDate, oToDate]) => {
-					console.log("@@@@@@@");
 					const dFromDateValue = oFromDate.getDateValue();
 					const dToDateValue = oToDate.getDateValue();
 					// 必須チェックは別でやっているのでここでエラーにするのは両方入力されていて値が不正な場合のみ

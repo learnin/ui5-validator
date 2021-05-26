@@ -1344,11 +1344,20 @@ sap.ui.define([
 			}
 		}
 	});
+
+	/**
+	 * Returns the targets of this message.
+	 * 
+	 * @returns [string] The message targets; empty array if the message has no targets
+	 */
 	_ValidatorMessage.prototype.getTargets = function() {
 		if (Message.prototype.getTargets) {
 			return Message.prototype.getTargets.call(this);
 		}
-		return this.targets;
+		if (this.targets) {
+			return this.targets;
+		}
+		return [];
 	};
 	_ValidatorMessage.prototype.getValidationErrorControlIds = function() {
 		return this.validationErrorControlIds;
