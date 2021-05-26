@@ -1,6 +1,6 @@
 {
   "name": "@learnin/ui5-validator",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Validator library for OpenUI5/SAPUI5.",
   "scripts": {
     "build": "ui5 build --clean-dest"
