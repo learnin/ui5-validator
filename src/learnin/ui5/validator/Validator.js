@@ -1359,6 +1359,12 @@ sap.ui.define([
 		}
 		return [];
 	};
+
+	/**
+	 * 検証エラーとなったコントロールのIDを取得する。
+	 * 
+	 * @returns [string] 検証エラーとなったコントロールのID
+	 */
 	_ValidatorMessage.prototype.getValidationErrorControlIds = function() {
 		return this.validationErrorControlIds;
 	};
