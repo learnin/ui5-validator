@@ -1,7 +1,6 @@
 sap.ui.define([
 	"sap/m/Bar",
 	"sap/m/Button",
-	"sap/m/ButtonType",
 	"sap/m/Dialog",
 	"sap/m/MessageItem",
 	"sap/m/MessageView",
@@ -15,7 +14,6 @@ sap.ui.define([
 ], function (
 	Bar,
 	Button,
-	ButtonType,
 	Dialog,
 	MessageItem,
 	MessageView,
