@@ -490,10 +490,12 @@ sap.ui.define([
 		if (oTargetRootControl instanceof sapUiTableTable && oTargetRootControl.getBinding()) {
 			const aRows = oTargetRootControl.getRows();
 			for (let i = 0, iTableRowCount = oTargetRootControl.getBinding().getLength(); i < iTableRowCount; i++) {
-				const aCellControls = aRows[i].getCells();
-				if (aCellControls) {
-					for (let j = 0; j < aCellControls.length; j++) {
-						this._attachValidator(aCellControls[j]);
+				if (aRows[i]) {
+					const aCellControls = aRows[i].getCells();
+					if (aCellControls) {
+						for (let j = 0; j < aCellControls.length; j++) {
+							this._attachValidator(aCellControls[j]);
+						}
 					}
 				}
 			}
@@ -543,11 +545,13 @@ sap.ui.define([
 		if (oTargetRootControl instanceof sapUiTableTable && oTargetRootControl.getBinding()) {
 			const aRows = oTargetRootControl.getRows();
 			for (let i = 0, iTableRowCount = oTargetRootControl.getBinding().getLength(); i < iTableRowCount; i++) {
-				const aCellControls = aRows[i].getCells();
-				if (aCellControls) {
-					for (let j = 0; j < aCellControls.length; j++) {
-						if (!this._validate(aCellControls[j])) {
-							isValid = false;
+				if (aRows[i]) {
+					const aCellControls = aRows[i].getCells();
+					if (aCellControls) {
+						for (let j = 0; j < aCellControls.length; j++) {
+							if (!this._validate(aCellControls[j])) {
+								isValid = false;
+							}
 						}
 					}
 				}
