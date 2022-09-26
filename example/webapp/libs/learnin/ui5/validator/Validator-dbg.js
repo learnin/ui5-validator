@@ -1190,7 +1190,8 @@ sap.ui.define([
 					const oTable = oRow.getParent();
 					const iColumnIndex = oRow.indexOfCell(oControl);
 					if (iColumnIndex !== -1) {
-						const oLabelOrSLabel = oTable.getColumns()[iColumnIndex].getLabel();
+						// oRow.indexOfCell では visible=false のカラムはスキップされているのでインデックス値を合わせるためフィルタする
+						const oLabelOrSLabel = oTable.getColumns().filter(col => col.getVisible())[iColumnIndex].getLabel();
 						if (typeof oLabelOrSLabel === "string") {
 							return oLabelOrSLabel;
 						} else if (oLabelOrSLabel.getText) {
@@ -1206,7 +1207,8 @@ sap.ui.define([
 					const oTable = oColumnListItem.getParent();
 					const iColumnIndex = oColumnListItem.indexOfCell(oControl);
 					if (iColumnIndex !== -1) {
-						const oColumnHeader = oTable.getColumns()[iColumnIndex].getHeader();
+						// oRow.indexOfCell では visible=false のカラムはスキップされているのでインデックス値を合わせるためフィルタする
+						const oColumnHeader = oTable.getColumns().filter(col => col.getVisible())[iColumnIndex].getHeader();
 						if (oColumnHeader && oColumnHeader.getText) {
 							return oColumnHeader.getText();
 						}
