@@ -129,6 +129,11 @@
 										<Input id="requiredInputStringLabelInGridTable" value="{inGridTable>requiredInputStringLabel}" required="true" />
 									</table:template>
 								</table:Column>
+								<table:Column label="Invisible Input string label in GridTable" visible="false">
+									<table:template>
+										<Input id="InvisibleInputStringLabelInGridTable" />
+									</table:template>
+								</table:Column>
 								<table:Column>
 									<Label text="Required Input Label in GridTable" labelFor="requiredInputLabelInGridTable" />
 									<table:template>
