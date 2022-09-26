@@ -490,10 +490,12 @@ sap.ui.define([
 		if (oTargetRootControl instanceof sapUiTableTable && oTargetRootControl.getBinding()) {
 			const aRows = oTargetRootControl.getRows();
 			for (let i = 0, iTableRowCount = oTargetRootControl.getBinding().getLength(); i < iTableRowCount; i++) {
-				const aCellControls = aRows[i].getCells();
-				if (aCellControls) {
-					for (let j = 0; j < aCellControls.length; j++) {
-						this._attachValidator(aCellControls[j]);
+				if (aRows[i]) {
+					const aCellControls = aRows[i].getCells();
+					if (aCellControls) {
+						for (let j = 0; j < aCellControls.length; j++) {
+							this._attachValidator(aCellControls[j]);
+						}
 					}
 				}
 			}
@@ -543,11 +545,13 @@ sap.ui.define([
 		if (oTargetRootControl instanceof sapUiTableTable && oTargetRootControl.getBinding()) {
 			const aRows = oTargetRootControl.getRows();
 			for (let i = 0, iTableRowCount = oTargetRootControl.getBinding().getLength(); i < iTableRowCount; i++) {
-				const aCellControls = aRows[i].getCells();
-				if (aCellControls) {
-					for (let j = 0; j < aCellControls.length; j++) {
-						if (!this._validate(aCellControls[j])) {
-							isValid = false;
+				if (aRows[i]) {
+					const aCellControls = aRows[i].getCells();
+					if (aCellControls) {
+						for (let j = 0; j < aCellControls.length; j++) {
+							if (!this._validate(aCellControls[j])) {
+								isValid = false;
+							}
 						}
 					}
 				}
@@ -1010,7 +1014,7 @@ sap.ui.define([
 	 * @private
 	 * @param {sap.ui.core.Control} oControl 判定対象のコントロール
 	 * @param {string} sParentControlId 親コントロールID
-	 * @returns true: 親コントロール自身かその子供, false: 親コントロールでもその子供でもない
+	 * @returns {boolean} true: 親コントロール自身かその子供, false: 親コントロールでもその子供でもない
 	 */
 	Validator.prototype._isChildOrEqualControlId = function(oControl, sParentControlId) {
 		if (oControl.getId() === sParentControlId) {
@@ -1139,7 +1143,7 @@ sap.ui.define([
 	 * @private
 	 * @param {string} sKey キー
 	 * @param {string} sDefaultText デフォルトのテキスト
-	 * @returns テキスト
+	 * @returns {string} テキスト
 	 */
 	Validator.prototype._getResourceText = function(sKey, sDefaultText) {
 		if (this._resourceBundle) {
@@ -1277,7 +1281,7 @@ sap.ui.define([
 	 * 
 	 * @private
 	 * @param {sap.ui.core.Element} oElement エレメント
-	 * @returns true: 本 Validator によりエラーステートをセットされている, false: セットされていない
+	 * @returns {boolean} true: 本 Validator によりエラーステートをセットされている, false: セットされていない
 	 */
 	Validator.prototype._isSetValueStateError = function(oElement) {
 		return oElement.data(this._CUSTOM_DATA_KEY_FOR_IS_SET_VALUE_STATE_ERROR) === "true";
@@ -1348,7 +1352,7 @@ sap.ui.define([
 	/**
 	 * Returns the targets of this message.
 	 * 
-	 * @returns [string] The message targets; empty array if the message has no targets
+	 * @returns {string[]} The message targets; empty array if the message has no targets
 	 */
 	_ValidatorMessage.prototype.getTargets = function() {
 		if (Message.prototype.getTargets) {
@@ -1359,9 +1363,21 @@ sap.ui.define([
 		}
 		return [];
 	};
+
+	/**
+	 * 検証エラーとなったコントロールのIDを取得する。
+	 * 
+	 * @returns {string[]} 検証エラーとなったコントロールのID
+	 */
 	_ValidatorMessage.prototype.getValidationErrorControlIds = function() {
 		return this.validationErrorControlIds;
 	};
+
+	/**
+	 * 検証を行った関数のIDを取得する。
+	 * 
+	 * @returns {string} 検証を行った関数のID
+	 */
 	_ValidatorMessage.prototype.getValidateFunctionId = function() {
 		return this.validateFunctionId;
 	};
