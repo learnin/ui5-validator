@@ -123,7 +123,12 @@
 
 					<uxap:ObjectPageSection titleUppercase="false" title="In the Table">
 						<uxap:ObjectPageSubSection>
-							<table:Table rows="{inGridTable>/rows}">
+							<table:Table
+								rows="{
+									path: 'inGridTable>/rows',
+									templateShareable: false
+								}"
+								rowsUpdated="onRowsUpdated">
 								<table:Column label="Required Input string label in GridTable">
 									<table:template>
 										<Input id="requiredInputStringLabelInGridTable" value="{inGridTable>requiredInputStringLabel}" required="true" />

@@ -72,8 +72,38 @@ sap.ui.define([
 					requiredInputStringLabel: "",
 					requiredInputLabel: ""
 				}, {
-					requiredInputStringLabel: "",
-					requiredInputLabel: ""
+					requiredInputStringLabel: "1",
+					requiredInputLabel: "1"
+				}, {
+					requiredInputStringLabel: "2",
+					requiredInputLabel: "2"
+				}, {
+					requiredInputStringLabel: "3",
+					requiredInputLabel: "3"
+				}, {
+					requiredInputStringLabel: "4",
+					requiredInputLabel: "4"
+				}, {
+					requiredInputStringLabel: "5",
+					requiredInputLabel: "5"
+				}, {
+					requiredInputStringLabel: "6",
+					requiredInputLabel: "6"
+				}, {
+					requiredInputStringLabel: "7",
+					requiredInputLabel: "7"
+				}, {
+					requiredInputStringLabel: "8",
+					requiredInputLabel: "8"
+				}, {
+					requiredInputStringLabel: "9",
+					requiredInputLabel: "9"
+				}, {
+					requiredInputStringLabel: "10",
+					requiredInputLabel: "10"
+				}, {
+					requiredInputStringLabel: "11",
+					requiredInputLabel: "11"
 				}]
 			}), "inGridTable");
 			this.setModel(new JSONModel({
@@ -175,6 +205,7 @@ sap.ui.define([
 			this.removeAllTechnicalMessages();
 
 			if (!this._validator.validate(oView) || this.hasErrorMessages()) {
+				this._doValidate = true;
 				this.showValidationErrorMessageDialog();
 				return;
 			}
@@ -182,6 +213,15 @@ sap.ui.define([
 		onClearErrors: function () {
 			this._validator.removeErrors(this.getView());
 			sap.ui.getCore().getMessageManager().removeAllMessages();
+			this._doValidate = false;
+		},
+		onRowsUpdated: function(oEvent) {
+			if (!this._doValidate) {
+				return;
+			}
+			const oSource = oEvent.getSource();
+			this._validator.removeErrors(oSource);
+			this._validator.validate(oSource);
 		}
 	});
 });
