@@ -205,7 +205,6 @@ sap.ui.define([
 			this.removeAllTechnicalMessages();
 
 			if (!this._validator.validate(oView) || this.hasErrorMessages()) {
-				this._doValidate = true;
 				this.showValidationErrorMessageDialog();
 				return;
 			}
@@ -213,15 +212,6 @@ sap.ui.define([
 		onClearErrors: function () {
 			this._validator.removeErrors(this.getView());
 			sap.ui.getCore().getMessageManager().removeAllMessages();
-			this._doValidate = false;
-		},
-		onRowsUpdated: function(oEvent) {
-			if (!this._doValidate) {
-				return;
-			}
-			const oSource = oEvent.getSource();
-			this._validator.removeErrors(oSource);
-			this._validator.validate(oSource);
 		}
 	});
 });

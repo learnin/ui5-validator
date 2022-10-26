@@ -124,14 +124,14 @@
 					<uxap:ObjectPageSection titleUppercase="false" title="In the Table">
 						<uxap:ObjectPageSubSection>
 							<table:Table
+								id="gridTable"
 								rows="{
 									path: 'inGridTable>/rows',
 									templateShareable: false
-								}"
-								rowsUpdated="onRowsUpdated">
-								<table:Column label="Required Input string label in GridTable">
+								}">
+								<table:Column label="Not required Input string label in GridTable">
 									<table:template>
-										<Input id="requiredInputStringLabelInGridTable" value="{inGridTable>requiredInputStringLabel}" required="true" />
+										<Input id="requiredInputStringLabelInGridTable" value="{inGridTable>requiredInputStringLabel}" />
 									</table:template>
 								</table:Column>
 								<table:Column label="Invisible Input string label in GridTable" visible="false">

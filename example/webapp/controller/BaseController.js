@@ -10,7 +10,9 @@ sap.ui.define([
 	"sap/ui/core/routing/History",
 	"sap/ui/core/IconPool",
 	"sap/ui/core/UIComponent",
-	"sap/ui/core/ValueState"
+	"sap/ui/core/ValueState",
+	"sap/ui/model/json/JSONModel",
+	"sap/ui/table/Table"
 ], function (
 	Bar,
 	Button,
@@ -23,7 +25,9 @@ sap.ui.define([
 	History,
 	IconPool,
 	UIComponent,
-	ValueState) {
+	ValueState,
+	JSONModel,
+	sapUiTableTable) {
 	"use strict";
 
 	return Controller.extend("learnin.ui5.validator.example.controller.BaseController", {
@@ -191,12 +195,45 @@ sap.ui.define([
 				listSelect: function () {
 					oBackButton.setVisible(false);
 				},
-				activeTitlePress: oEvent => {
+				activeTitlePress: async oEvent => {
 					const oMessage = oEvent.getParameters().item.getBindingContext().getObject();
-					const oControl = sap.ui.getCore().byId(oMessage.getControlId());
+					let oControl = sap.ui.getCore().byId(oMessage.getControlId());
 
 					oDialog.close();
+					
 					if (oControl) {
+						let fullTarget = null;
+						if (oMessage.fullTarget) {
+							if (Array.isArray(oMessage.fullTarget)) {
+								if (oMessage.fullTarget.length > 0) {
+									fullTarget = oMessage.fullTarget[0];
+								}
+							} else {
+								fullTarget = oMessage.fullTarget;
+							}
+						}
+						if (fullTarget
+							&& oControl.getParent()
+							&& oControl.getParent().getParent() instanceof sapUiTableTable
+							&& oControl.getParent().getParent().getBinding("rows").getModel() instanceof JSONModel) {
+							// sap.ui.table.Table 配下のコントロールは画面に表示されている数だけしか存在せず、スクロール時は BindingContext が変わっていくだけなので、
+							// Message.getControlId のコントロールが現在もエラーかどうかはわからない。
+							// ui5-Validator でfullTargetにエラーの行インデックスがセットされているので、その行に一旦スクロールさせてその行がバインドされてるコントロールを取得して、そのコントロールにフォーカスする。
+							const oRow = oControl.getParent();
+							const oTable = oRow.getParent();
+							const iColumnIndex = oRow.indexOfCell(oControl);
+							const iTargetDataRowIndex = fullTarget.split("/")[1];
+							oTable.setFirstVisibleRow(iTargetDataRowIndex);
+							const sTableModelName = oTable.getBindingInfo("rows").model;
+
+							// このあと行うoTable.getRows()はスクロールが終わってからでないと対象の行を取得できないので、sleepさせる。
+							await new Promise((resolve) => setTimeout(resolve, 100));
+							
+							oControl = oTable.getRows().find(oRow => oRow.getCells()[iColumnIndex].getBindingContext(sTableModelName).getPath() === "/rows/" + iTargetDataRowIndex).getCells()[iColumnIndex];
+							if (!oControl) {
+								return;
+							}
+						}
 						setTimeout(() => oControl.focus(), 300);
 					}
 				},
