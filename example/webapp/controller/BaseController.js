@@ -222,14 +222,14 @@ sap.ui.define([
 							const oRow = oControl.getParent();
 							const oTable = oRow.getParent();
 							const iColumnIndex = oRow.indexOfCell(oControl);
-							const iTargetDataRowIndex = fullTarget.split("/")[1];
+							const iTargetDataRowIndex = fullTarget.replace(`${oTable.getBinding("rows").getPath()}/`, "");
 							oTable.setFirstVisibleRow(iTargetDataRowIndex);
 							const sTableModelName = oTable.getBindingInfo("rows").model;
 
 							// このあと行うoTable.getRows()はスクロールが終わってからでないと対象の行を取得できないので、sleepさせる。
 							await new Promise((resolve) => setTimeout(resolve, 100));
 							
-							oControl = oTable.getRows().find(oRow => oRow.getCells()[iColumnIndex].getBindingContext(sTableModelName).getPath() === "/rows/" + iTargetDataRowIndex).getCells()[iColumnIndex];
+							oControl = oTable.getRows().find(oRow => oRow.getCells()[iColumnIndex].getBindingContext(sTableModelName).getPath() === fullTarget).getCells()[iColumnIndex];
 							if (!oControl) {
 								return;
 							}

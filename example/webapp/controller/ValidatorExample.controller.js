@@ -68,7 +68,7 @@ sap.ui.define([
 				requiredInput: ""
 			}), "withUI5Validator");
 			this.setModel(new JSONModel({
-				rows: [{
+				data: [{
 					requiredInputStringLabel: "",
 					requiredInputLabel: ""
 				}, {

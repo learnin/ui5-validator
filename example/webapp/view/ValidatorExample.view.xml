@@ -126,7 +126,7 @@
 							<table:Table
 								id="gridTable"
 								rows="{
-									path: 'inGridTable>/rows',
+									path: 'inGridTable>/data',
 									templateShareable: false
 								}">
 								<table:Column label="Not required Input string label in GridTable">
