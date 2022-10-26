@@ -116,7 +116,10 @@ sap.ui.define([
 			// フォーカスアウト時のバリデーション関数が attach されたコントロールIDを保持するマップ。型は Map<String, Object>
 			this._mControlIdAttachedValidator = new Map();
 
+			// sap.ui.table.Table にバインドされているデータで、バリデーションエラーとなった行・列インデックス情報を保持するマップ。型は Map<String, Object>
+			// key: テーブルID, value: {rowIndex: 行インデックス, colIndex: 列インデックス（このインデックス番号には非表示列はカウントされていない）}
 			this._invalidTableRowCols = new Map();
+			// _invalidTableRowCols を使ってスクロール時に配下のコントロールのValueStateの最新化を行うためのイベントハンドラをアタッチした sap.ui.table.Table のIDのセット
 			this._mTableIdAttachedRowsUpdated = new Set();
 
 			if (mParameter && mParameter.resourceBundle) {
