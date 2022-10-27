@@ -117,7 +117,7 @@ sap.ui.define([
 			this._mControlIdAttachedValidator = new Map();
 
 			// sap.ui.table.Table にバインドされているデータで、バリデーションエラーとなった行・列インデックス情報を保持するマップ。型は Map<String, Object>
-			// key: テーブルID, value: {rowPath: sap.ui.table.Rowのバインディングパス, rowIndex: 行インデックス, colIndex: 列インデックス（このインデックス番号には非表示列はカウントされていない）}
+			// key: テーブルID, value: {rowPath: sap.ui.table.Rowのバインディングパス, rowIndex: 行インデックス, columnId: 列ID}
 			this._invalidTableRowCols = new Map();
 			// _invalidTableRowCols を使ってスクロール時に配下のコントロールのValueStateの最新化を行うためのイベントハンドラをアタッチした sap.ui.table.Table のIDのセット
 			this._mTableIdAttachedRowsUpdated = new Set();
@@ -590,13 +590,15 @@ sap.ui.define([
 
 								const sTableId = oTargetRootControl.getId();
 								const aInvalidRowCols = this._invalidTableRowCols.get(sTableId);
-								const iColIndex = aRows[0].indexOfCell(aRequiredCells[j]);
+								const iVlisibledColIndex = aRows[0].indexOfCell(aRequiredCells[j]);
+								// oRow.indexOfCell では visible=false のカラムはスキップされているのでインデックス値を合わせるためフィルタする
+								const sColId = oTargetRootControl.getColumns().filter(oCol => oCol.getVisible())[iVlisibledColIndex].getId();
 								if (aInvalidRowCols) {
-									if (!aInvalidRowCols.some(oInvalidRowCol => oInvalidRowCol.rowIndex === i && oInvalidRowCol.colIndex === iColIndex)) {
-										aInvalidRowCols.push({rowPath: `${oTableBindingPath}/${i}`, rowIndex: i, colIndex: iColIndex});
+									if (!aInvalidRowCols.some(oInvalidRowCol => oInvalidRowCol.rowIndex === i && oInvalidRowCol.columnId === sColId)) {
+										aInvalidRowCols.push({rowPath: `${oTableBindingPath}/${i}`, rowIndex: i, columnId: sColId});
 									}
 								} else {
-									this._invalidTableRowCols.set(sTableId, [{rowPath: `${oTableBindingPath}/${i}`, rowIndex: i, colIndex: iColIndex}]);
+									this._invalidTableRowCols.set(sTableId, [{rowPath: `${oTableBindingPath}/${i}`, rowIndex: i, columnId: sColId}]);
 								}
 							}
 						}
@@ -665,6 +667,36 @@ sap.ui.define([
 		return isValid;
 	};
 
+	Validator.prototype._toVisibledColumnIndex = function(oSapUiTableTable, aColumnIndiciesOrIColumnIndex) {
+		let aColumnIndicies = aColumnIndiciesOrIColumnIndex;
+		let bIsArray = true;
+		if (!Array.isArray(aColumnIndicies)) {
+			bIsArray = false;
+			aColumnIndicies = [aColumnIndicies];
+		}
+		const aColumns = oSapUiTableTable.getColumns();
+		let iNumberOfInVisibleColumns = 0;
+		for (let i = 0, n = Math.min(aColumns.length, Math.max.apply(null, aColumnIndicies) + 1); i < n; i++) {
+			if (!aColumns[i].getVisible()) {
+				iNumberOfInVisibleColumns++;
+			}
+		}
+		if (iNumberOfInVisibleColumns === 0) {
+			if (bIsArray) {
+				return aColumnIndicies;
+			}
+			return aColumnIndicies[0];
+		}
+		const results = [];
+		for (let i = 0, n = aColumnIndicies.length; i < n; i++) {
+			results.push(aColumnIndicies[i] - iNumberOfInVisibleColumns);
+		}
+		if (bIsArray) {
+			return results;
+		}
+		return results[0];
+	};
+
 	Validator.prototype._renewValueStateInTable = function(oEvent) {
 		const oTable = oEvent.getSource();
 		const aInvalidRowCols = this._invalidTableRowCols.get(oTable.getId());
@@ -672,7 +704,16 @@ sap.ui.define([
 			return;
 		}
 		// スクロールしてもテーブル内のセルのValueStateは前の状態のままなので、一旦、バリデーションエラーとして保持されている列のValuteStateを全行クリアする。
-		const aUniqColIndices = [...new Set(aInvalidRowCols.map(oInvalidRowCol => oInvalidRowCol.colIndex))];
+		const aUniqColIds = Array.from(new Set(aInvalidRowCols.map(oInvalidRowCol => oInvalidRowCol.columnId)));
+		let aUniqColIndices = [];
+		for (let i = 0, n = aUniqColIds.length; i < n; i++) {
+			const oColumn = Element.registry.get(aUniqColIds[i]);
+			if (!oColumn || !oColumn.getVisible()) {
+				continue;
+			}
+			aUniqColIndices.push(oTable.indexOfColumn(oColumn));
+		}
+		aUniqColIndices = this._toVisibledColumnIndex(oTable, aUniqColIndices);
 		const aRows = oTable.getRows();
 		for (let i = 0, m = aUniqColIndices.length; i < m; i++) {
 			for (let j = 0, n = aRows.length; j < n; j++) {
@@ -682,10 +723,14 @@ sap.ui.define([
 		// バリデーションエラーとして保持されている行・列インデックスを使って、再度、エラーデータのうち、画面に見えているセルのValueStateをエラーにする。
 		const sTableModelName = oTable.getBindingInfo("rows").model;
 		for (let i = 0, n = aInvalidRowCols.length; i < n; i++) {
-			const iColIndex = aInvalidRowCols[i].colIndex;
-			const oInvalidRow = oTable.getRows().find(oRow => oRow.getCells()[iColIndex].getBindingContext(sTableModelName).getPath() === aInvalidRowCols[i].rowPath);
+			const oColumn = Element.registry.get(aInvalidRowCols[i].columnId);
+			if (!oColumn || !oColumn.getVisible()) {
+				continue;
+			}
+			const iVisibledColIndex = this._toVisibledColumnIndex(oTable, oTable.indexOfColumn(oColumn));
+			const oInvalidRow = oTable.getRows().find(oRow => oRow.getCells()[iVisibledColIndex].getBindingContext(sTableModelName).getPath() === aInvalidRowCols[i].rowPath);
 			if (oInvalidRow) {
-				const oInvalidCell = oInvalidRow.getCells()[iColIndex];
+				const oInvalidCell = oInvalidRow.getCells()[iVisibledColIndex];
 				const sMessageText = this._getRequiredErrorMessageTextByControl(oInvalidCell);
 				this._setValueState(oInvalidCell, ValueState.Error, sMessageText);
 			}
@@ -699,12 +744,7 @@ sap.ui.define([
 		if (!aInvalidRowCols) {
 			return;
 		}
-		const sColumnId = oEvent.getParameters().column.getId();
-		const iColIndex = oTable.getColumns().filter(oColumn => oColumn.getVisible()).findIndex(oColumn => oColumn.getId() === sColumnId);
-		if (iColIndex === -1) {
-			return;
-		}
-		aInvalidRowCols = aInvalidRowCols.filter(oInvalidRowCol => oInvalidRowCol.colIndex !== iColIndex);
+		aInvalidRowCols = aInvalidRowCols.filter(oInvalidRowCol => oInvalidRowCol.columnId !== oEvent.getParameters().column.getId());
 		this._invalidTableRowCols.set(oTable.getId(), aInvalidRowCols);
 	};
 
@@ -1021,17 +1061,18 @@ sap.ui.define([
 				const oTable = oControl.getParent().getParent();
 				if (oTable.getBinding("rows") && oTable.getBinding("rows").getModel() instanceof JSONModel) {
 					const sTableBindingPath = oTable.getBinding("rows").getPath();
-					const iColIndex = oControl.getParent().indexOfCell(oControl);
+					const iVisibledColIndex = oControl.getParent().indexOfCell(oControl);
+					const sColId = oTable.getColumns().filter(oColumn => oColumn.getVisible())[iVisibledColIndex].getId();
 					const sTableModelName = oTable.getBindingInfo("rows").model;
-					const sRowBindingPath = oControl.getParent().getCells()[iColIndex].getBindingContext(sTableModelName).getPath();
+					const sRowBindingPath = oControl.getParent().getCells()[iVisibledColIndex].getBindingContext(sTableModelName).getPath();
 					const iRowIndex = parseInt(sRowBindingPath.replace(`${sTableBindingPath}/`, ""), 10);
 					const aInvalidRowCols = this._invalidTableRowCols.get(oTable.getId());
 					if (aInvalidRowCols) {
-						if (!aInvalidRowCols.some(oInvalidRowCol => oInvalidRowCol.rowPath === sRowBindingPath && oInvalidRowCol.colIndex === iColIndex)) {
-							aInvalidRowCols.push({rowPath: sRowBindingPath, rowIndex: iRowIndex, colIndex: iColIndex});
+						if (!aInvalidRowCols.some(oInvalidRowCol => oInvalidRowCol.rowPath === sRowBindingPath && oInvalidRowCol.columnId === sColId)) {
+							aInvalidRowCols.push({rowPath: sRowBindingPath, rowIndex: iRowIndex, columnId: sColId});
 						}
 					} else {
-						this._invalidTableRowCols.set(oTable.getId(), [{rowPath: sRowBindingPath, rowIndex: iRowIndex, colIndex: iColIndex}]);
+						this._invalidTableRowCols.set(oTable.getId(), [{rowPath: sRowBindingPath, rowIndex: iRowIndex, columnId: sColId}]);
 					}
 				}
 			}
@@ -1046,9 +1087,9 @@ sap.ui.define([
 					if (!aInvalidRowCols) {
 						return;
 					}
-					const iColIndex = oControl.getParent().indexOfCell(oControl);
+					const iVisibledColIndex = oControl.getParent().indexOfCell(oControl);
 					const sTableModelName = oTable.getBindingInfo("rows").model;
-					const sRowBindingPath = oControl.getParent().getCells()[iColIndex].getBindingContext(sTableModelName).getPath();
+					const sRowBindingPath = oControl.getParent().getCells()[iVisibledColIndex].getBindingContext(sTableModelName).getPath();
 					aInvalidRowCols = aInvalidRowCols.filter(oInvalidRowCol => sRowBindingPath !== oInvalidRowCol.rowPath);
 					this._invalidTableRowCols.set(oTable.getId(), aInvalidRowCols);
 				}
