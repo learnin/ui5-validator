@@ -667,6 +667,14 @@ sap.ui.define([
 		return isValid;
 	};
 
+	/**
+	 * sap.ui.table.Table#indexOfColumn や #getColumns で使う非表示列を含む列インデックス値から
+	 * sap.ui.table.Row#indexOfCell や #getCells で使う非表示列を除いた列インデックス値へ変換する
+	 * 
+	 * @param {sap.ui.table.Table} oSapUiTableTable テーブルコントロール
+	 * @param {string[]|string} aColumnIndiciesOrIColumnIndex 非表示列を含む列インデックス値
+	 * @returns {string[]|string} 非表示列を除いた列インデックス値
+	 */
 	Validator.prototype._toVisibledColumnIndex = function(oSapUiTableTable, aColumnIndiciesOrIColumnIndex) {
 		let aColumnIndicies = aColumnIndiciesOrIColumnIndex;
 		let bIsArray = true;
@@ -697,6 +705,12 @@ sap.ui.define([
 		return results[0];
 	};
 
+	/**
+	 * sap.ui.table.Table#rowsUpdated イベント用のハンドラ
+	 * テーブルの画面に表示されている行について、ValueState, ValueText を最新化する
+	 * 
+	 * @param {sap.ui.base.Event} oEvent イベント
+	 */
 	Validator.prototype._renewValueStateInTable = function(oEvent) {
 		const oTable = oEvent.getSource();
 		const aInvalidRowCols = this._invalidTableRowCols.get(oTable.getId());
@@ -737,8 +751,14 @@ sap.ui.define([
 		}
 	};
 
+	/**
+	 * sap.ui.table.Table#sort イベント用のハンドラ
+	 * 列がソートされると this._invalidTableRowCols に保持しているバリデーションエラーの行インデックスとテーブルのデータの行が合わなくなってしまうため
+	 * this._invalidTableRowCols に保持しているエラー行・列情報をクリアする。
+	 * 
+	 * @param {sap.ui.base.Event} oEvent イベント
+	 */
 	Validator.prototype._clearInValidRowColsInTable = function(oEvent) {
-		// 列がソートされるとバリデーションエラーの行が変わってしまい、どの行がエラーだったかわからなくなるため、保持しているエラー行・列情報をクリアする。
 		const oTable = oEvent.getSource();
 		let aInvalidRowCols = this._invalidTableRowCols.get(oTable.getId());
 		if (!aInvalidRowCols) {
