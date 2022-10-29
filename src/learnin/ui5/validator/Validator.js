@@ -238,6 +238,13 @@ sap.ui.define([
 				}
 			}
 		});
+
+		this._invalidTableRowCols.forEach((oRowCol, sTableId) => {
+			const oTable = Element.registry.get(sTableId);
+			if (oTable && this._isChildOrEqualControlId(oTable, sTargetRootControlId)) {
+				this._invalidTableRowCols.delete(sTableId);
+			}
+		});
 	};
 
 	/**
