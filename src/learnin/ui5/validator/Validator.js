@@ -1,4 +1,5 @@
 sap.ui.define([
+	"sap/base/util/deepExtend",
 	"sap/base/util/uid",
 	"sap/m/CheckBox",
 	"sap/m/ColumnListItem",
@@ -19,6 +20,7 @@ sap.ui.define([
 	"sap/ui/table/Row",
 	"sap/ui/table/Table"
 ], function (
+	deepExtend,
 	uid,
 	CheckBox,
 	ColumnListItem,
@@ -39,6 +41,29 @@ sap.ui.define([
 	sapUiTableRow,
 	sapUiTableTable) {
 	"use strict";
+
+	/**
+	 * スクロールイベントハンドラ等、頻繁に実行されるイベントを間引くためのラッパー
+	 * 
+	 * @param {Object} thisArg this 参照
+	 * @param {function} fn イベントハンドラ
+	 * @param {int} delay 遅延ミリ秒。最後に発生したイベントからこの期間を経過すると実行される
+	 * @returns {function} イベントハンドラ
+	 */
+	const debounceEventHandler = (thisArg, fn, delay) => {
+		let timeoutId;
+
+		return (oEvent) => {
+			if (timeoutId) {
+				clearTimeout(timeoutId);
+			}
+			// https://sapui5.hana.ondemand.com/#/api/sap.ui.base.Event
+			// > Implements sap.ui.base.Poolable and therefore an event object in the event handler will be reset by sap.ui.base.ObjectPool after the event handler is done.
+			// 上記の通り、Event はハンドラ関数が終わるとリセットされてしまうので、非同期で実行可能とするためにディープコピーする。
+			const oClonedEvent = deepExtend({}, oEvent);
+			timeoutId = setTimeout(() => fn.call(thisArg, oClonedEvent), delay);
+		};
+	};
 
 	/**
 	 * バリデータ。
@@ -121,6 +146,8 @@ sap.ui.define([
 			this._invalidTableRowCols = new Map();
 			// _invalidTableRowCols を使ってスクロール時に配下のコントロールのValueStateの最新化を行うためのイベントハンドラをアタッチした sap.ui.table.Table のIDのセット
 			this._mTableIdAttachedRowsUpdated = new Set();
+
+			this._debouncedRenewValueStateInTable = null;
 
 			if (mParameter && mParameter.resourceBundle) {
 				this._resourceBundle = mParameter.resourceBundle;
@@ -251,7 +278,9 @@ sap.ui.define([
 				return;
 			}
 			if (this._isChildOrEqualControlId(oTable, sTargetRootControlId)) {
-				oTable.detachRowsUpdated(this._renewValueStateInTable, this);
+				if (this._debouncedRenewValueStateInTable) {
+					oTable.detachRowsUpdated(this._debouncedRenewValueStateInTable, this);
+				}
 				oTable.detachSort(this._clearInValidRowColsInTable, this);
 				this._mTableIdAttachedRowsUpdated.delete(sTableId);
 			}
@@ -607,7 +636,10 @@ sap.ui.define([
 			}
 			if (!isValid) {
 				if (!this._mTableIdAttachedRowsUpdated.has(oTargetRootControl.getId())) {
-					oTargetRootControl.attachRowsUpdated(this._renewValueStateInTable, this);
+					if (!this._debouncedRenewValueStateInTable) {
+						this._debouncedRenewValueStateInTable = debounceEventHandler(this, this._renewValueStateInTable, 100);
+					}
+					oTargetRootControl.attachRowsUpdated(this._debouncedRenewValueStateInTable, this);
 					oTargetRootControl.attachSort(this._clearInValidRowColsInTable, this);
 					this._mTableIdAttachedRowsUpdated.add(oTargetRootControl.getId());
 				}
@@ -666,7 +698,7 @@ sap.ui.define([
 		}
 		return isValid;
 	};
-
+  
 	/**
 	 * sap.ui.table.Table#indexOfColumn や #getColumns で使う非表示列を含む列インデックス値から
 	 * sap.ui.table.Row#indexOfCell や #getCells で使う非表示列を除いた列インデックス値へ変換する
