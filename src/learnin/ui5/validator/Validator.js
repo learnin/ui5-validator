@@ -141,13 +141,13 @@ sap.ui.define([
 			// フォーカスアウト時のバリデーション関数が attach されたコントロールIDを保持するマップ。型は Map<String, Object>
 			this._mControlIdAttachedValidator = new Map();
 
-			// sap.ui.table.Table にバインドされているデータで、バリデーションエラーとなった行・列インデックス情報を保持するマップ。型は Map<String, Object>
+			// sap.ui.table.Table にバインドされているデータで、バリデーションエラーとなったデータの行・列情報を保持するマップ。型は Map<String, Object>
 			// key: テーブルID, value: {rowPath: sap.ui.table.Rowのバインディングパス, rowIndex: 行インデックス, columnId: 列ID}
 			this._invalidTableRowCols = new Map();
 			// _invalidTableRowCols を使ってスクロール時に配下のコントロールのValueStateの最新化を行うためのイベントハンドラをアタッチした sap.ui.table.Table のIDのセット
 			this._mTableIdAttachedRowsUpdated = new Set();
 
-			this._debouncedRenewValueStateInTable = null;
+			this._debouncedRenewValueStateAndMessageInTable = null;
 
 			if (mParameter && mParameter.resourceBundle) {
 				this._resourceBundle = mParameter.resourceBundle;
@@ -285,8 +285,8 @@ sap.ui.define([
 				return;
 			}
 			if (this._isChildOrEqualControlId(oTable, sTargetRootControlId)) {
-				if (this._debouncedRenewValueStateInTable) {
-					oTable.detachRowsUpdated(this._debouncedRenewValueStateInTable, this);
+				if (this._debouncedRenewValueStateAndMessageInTable) {
+					oTable.detachRowsUpdated(this._debouncedRenewValueStateAndMessageInTable, this);
 				}
 				oTable.detachSort(this._clearInValidRowColsInTable, this);
 				this._mTableIdAttachedRowsUpdated.delete(sTableId);
@@ -643,10 +643,10 @@ sap.ui.define([
 			}
 			if (!isValid) {
 				if (!this._mTableIdAttachedRowsUpdated.has(oTargetRootControl.getId())) {
-					if (!this._debouncedRenewValueStateInTable) {
-						this._debouncedRenewValueStateInTable = debounceEventHandler(this, this._renewValueStateInTable, 100);
+					if (!this._debouncedRenewValueStateAndMessageInTable) {
+						this._debouncedRenewValueStateAndMessageInTable = debounceEventHandler(this, this._renewValueStateAndMessageInTable, 100);
 					}
-					oTargetRootControl.attachRowsUpdated(this._debouncedRenewValueStateInTable, this);
+					oTargetRootControl.attachRowsUpdated(this._debouncedRenewValueStateAndMessageInTable, this);
 					oTargetRootControl.attachSort(this._clearInValidRowColsInTable, this);
 					this._mTableIdAttachedRowsUpdated.add(oTargetRootControl.getId());
 				}
@@ -746,11 +746,12 @@ sap.ui.define([
 
 	/**
 	 * sap.ui.table.Table#rowsUpdated イベント用のハンドラ
-	 * テーブルの画面に表示されている行について、ValueState, ValueText を最新化する
+	 * テーブルの画面に表示されている行について、ValueState, ValueText を最新化し、
+	 * スクロール外で表示されていない行のエラーについて MessageModel から自動的に削除されている Message を登録し直す。
 	 * 
 	 * @param {sap.ui.base.Event} oEvent イベント
 	 */
-	Validator.prototype._renewValueStateInTable = function(oEvent) {
+	Validator.prototype._renewValueStateAndMessageInTable = function(oEvent) {
 		const oTable = oEvent.getSource();
 		const aInvalidRowCols = this._invalidTableRowCols.get(oTable.getId());
 		if (!aInvalidRowCols) {
@@ -773,7 +774,7 @@ sap.ui.define([
 				this._setValueState(aRows[j].getCells()[aUniqColIndices[i]], ValueState.None, null);
 			}
 		}
-		// バリデーションエラーとして保持されている行・列インデックスを使って、再度、エラーデータのうち、画面に見えているセルのValueStateをエラーにする。
+		// バリデーションエラーとして保持されている行・列情報を使って、再度、エラーデータのうち、画面に見えているセルのValueStateをエラーにする。
 		const sTableModelName = oTable.getBindingInfo("rows").model;
 		for (let i = 0, n = aInvalidRowCols.length; i < n; i++) {
 			const oColumn = Element.registry.get(aInvalidRowCols[i].columnId);
@@ -788,6 +789,47 @@ sap.ui.define([
 				this._setValueState(oInvalidCell, ValueState.Error, sMessageText);
 			}
 		}
+
+		// スクロール等により画面から見えなくなった行の Message は MessageModel から自動的に削除されてしまうので、追加し直す。
+		const sValidatorMessageName = _ValidatorMessage.getMetadata().getName();
+		const aMessages = sap.ui.getCore().getMessageManager().getMessageModel().getProperty("/").filter(oMessage => oMessage.fullTarget && BaseObject.isA(oMessage, sValidatorMessageName));
+		const mBeforeValueStateMap = new Map();
+		for (let i = 0, n = aInvalidRowCols.length; i < n; i++) {
+			const oColumn = Element.registry.get(aInvalidRowCols[i].columnId);
+			if (!oColumn) {
+				continue;
+			}
+			if (!aMessages.some(oMessage => {
+				if (oMessage.fullTarget !== aInvalidRowCols[i].rowPath) {
+					return false;
+				}
+				const oControl = Element.registry.get(oMessage.getControlId());
+				if (!oControl || !(oControl.getParent() && oControl.getParent().getParent() === oTable)) {
+					return false;
+				}	
+				const iVisibledColIndex = this._toVisibledColumnIndex(oTable, oTable.indexOfColumn(oColumn));
+				return oControl.getParent().indexOfCell(oControl) === iVisibledColIndex;
+			})) {
+				const iVisibledColIndex = this._toVisibledColumnIndex(oTable, oTable.indexOfColumn(oColumn));
+				// コントロールがどの行にあるかは画面に表示されていないデータ行のことを考えると意味がないため1行目固定とする。
+				// 実際の行は Message.fullTarget でわかるようにしている。
+				const oControl = oTable.getRows()[0].getCells()[iVisibledColIndex];
+				const sMessageText = this._getRequiredErrorMessageTextByControl(oControl);
+				const oBeforeValueState = oControl.getValueState ? oControl.getValueState() : null;
+				if (oBeforeValueState && !mBeforeValueStateMap.has(oControl.getId())) {
+					mBeforeValueStateMap.set(oControl.getId(), {control: oControl, valueState: oBeforeValueState, valueStateText: oControl.getValueStateText()});
+				}
+				this._addMessage(oControl, sMessageText, aInvalidRowCols[i].rowPath);
+			}
+		}
+		// 1行目固定のコントロールで Message を登録しているが、Message を追加すると自動的にそのコントロールに ValueState, ValueStateText がセットされてしまうので
+		// 元々の値を非同期でセットし直す。
+		setTimeout(() => {
+			mBeforeValueStateMap.forEach((val) => {
+				val.control.setValueState(val.valueState);
+				val.control.setValueStateText(val.valueStateText);
+			});
+		}, 0);
 	};
 
 	/**
@@ -1510,7 +1552,7 @@ sap.ui.define([
 	 * @private
 	 * @param {sap.ui.core.Control|sap.ui.core.Control[]} oControlOrAControls 検証エラーとなったコントロール
 	 * @param {string} sMessageText エラーメッセージ
-	 * @param {string} fullTarget
+	 * @param {string} [fullTarget]
 	 * @param {string} [sValidateFunctionId] 検証を行った関数のID。this._mRegisteredValidator に含まれる関数で検証した場合にのみ必要
 	 */
 	Validator.prototype._addMessage = function(oControlOrAControls, sMessageText, fullTarget, sValidateFunctionId) {

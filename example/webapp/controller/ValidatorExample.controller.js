@@ -198,6 +198,9 @@ sap.ui.define([
 				}
 			);
 		},
+		onShowErrors: function () {
+			this.showValidationErrorMessageDialog();
+		},
 		onValidate: function () {
 			const oView = this.getView();
 
