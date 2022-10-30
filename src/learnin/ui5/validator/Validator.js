@@ -289,6 +289,8 @@ sap.ui.define([
 					oTable.detachRowsUpdated(this._debouncedRenewValueStateAndMessageInTable, this);
 				}
 				oTable.detachSort(this._clearInValidRowColsInTable, this);
+				oTable.detachFilter(this._clearInValidRowColsInTable, this);
+				oTable.detachModelContextChange(this._clearInValidRowColsInTable, this);
 				this._mTableIdAttachedRowsUpdated.delete(sTableId);
 			}
 		});
@@ -648,6 +650,8 @@ sap.ui.define([
 					}
 					oTargetRootControl.attachRowsUpdated(this._debouncedRenewValueStateAndMessageInTable, this);
 					oTargetRootControl.attachSort(this._clearInValidRowColsInTable, this);
+					oTargetRootControl.attachFilter(this._clearInValidRowColsInTable, this);
+					oTargetRootControl.attachModelContextChange(this._clearInValidRowColsInTable, this);
 					this._mTableIdAttachedRowsUpdated.add(oTargetRootControl.getId());
 				}
 			}
@@ -833,20 +837,17 @@ sap.ui.define([
 	};
 
 	/**
-	 * sap.ui.table.Table#sort イベント用のハンドラ
-	 * 列がソートされると this._invalidTableRowCols に保持しているバリデーションエラーの行インデックスとテーブルのデータの行が合わなくなってしまうため
+	 * sap.ui.table.Table#sort や #filter, #modelContextChange イベント用のハンドラ
+	 * これらのイベントが発生した場合は this._invalidTableRowCols に保持しているバリデーションエラーの行インデックスとテーブルのデータの行が合わなくなってしまうため
 	 * this._invalidTableRowCols に保持しているエラー行・列情報をクリアする。
 	 * 
 	 * @param {sap.ui.base.Event} oEvent イベント
 	 */
 	Validator.prototype._clearInValidRowColsInTable = function(oEvent) {
-		const oTable = oEvent.getSource();
-		let aInvalidRowCols = this._invalidTableRowCols.get(oTable.getId());
-		if (!aInvalidRowCols) {
-			return;
+		const sTableId = oEvent.getSource().getId();
+		if (this._invalidTableRowCols.has(sTableId)) {
+			this._invalidTableRowCols.delete(sTableId);
 		}
-		aInvalidRowCols = aInvalidRowCols.filter(oInvalidRowCol => oInvalidRowCol.columnId !== oEvent.getParameters().column.getId());
-		this._invalidTableRowCols.set(oTable.getId(), aInvalidRowCols);
 	};
 
 	/**
