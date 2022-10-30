@@ -147,7 +147,7 @@ sap.ui.define([
 			// _invalidTableRowCols を使ってスクロール時に配下のコントロールのValueStateの最新化を行うためのイベントハンドラをアタッチした sap.ui.table.Table のIDのセット
 			this._mTableIdAttachedRowsUpdated = new Set();
 
-			this._debouncedRenewValueStateAndMessageInTable = null;
+			this._debouncedRenewValueStateInTable = null;
 
 			if (mParameter && mParameter.resourceBundle) {
 				this._resourceBundle = mParameter.resourceBundle;
@@ -285,8 +285,8 @@ sap.ui.define([
 				return;
 			}
 			if (this._isChildOrEqualControlId(oTable, sTargetRootControlId)) {
-				if (this._debouncedRenewValueStateAndMessageInTable) {
-					oTable.detachRowsUpdated(this._debouncedRenewValueStateAndMessageInTable, this);
+				if (this._debouncedRenewValueStateInTable) {
+					oTable.detachRowsUpdated(this._debouncedRenewValueStateInTable, this);
 				}
 				oTable.detachSort(this._clearInValidRowColsInTable, this);
 				oTable.detachFilter(this._clearInValidRowColsInTable, this);
@@ -622,15 +622,19 @@ sap.ui.define([
 							if ((aRequiredPropertyNames[j] === "selectedIndex" && oValue < 0) || (aRequiredPropertyNames[j] !== "selectedIndex" && (oValue === "" || oValue === null || oValue === undefined))) {
 								isValid = false;
 								const sMessageText = this._getRequiredErrorMessageTextByControl(aRequiredCells[j]);
+								const iVisibledColIndex = aRows[0].indexOfCell(aRequiredCells[j]);
+								// oRow.indexOfCell では visible=false のカラムはスキップされているのでインデックス値を合わせるためフィルタする
+								const oColumn = oTargetRootControl.getColumns().filter(oCol => oCol.getVisible())[iVisibledColIndex];
 								// fullTarget にセットするのは 例えば以下で1行目がエラーなら "/data/0" となる
 								// <table:Table rows="{path: 'inGridTable>/data', templateShareable: false}">
-								this._addMessage(aRequiredCells[j], sMessageText, `${oTableBindingPath}/${i}`);
+								// Message に紐付けるコントロールは、セルではなく列とする。セルだとスクロールによりコントロールとバインドされているデータが変わってしまうし、
+								// 画面から見えなくなると自動的に MessageModel から削除されてしまうので。
+								this._addMessage(oColumn, sMessageText, `${oTableBindingPath}/${i}`, null, this._getLabelText(aRequiredCells[j]));
 
 								const sTableId = oTargetRootControl.getId();
+								const sColId = oColumn.getId();
 								const aInvalidRowCols = this._invalidTableRowCols.get(sTableId);
-								const iVlisibledColIndex = aRows[0].indexOfCell(aRequiredCells[j]);
-								// oRow.indexOfCell では visible=false のカラムはスキップされているのでインデックス値を合わせるためフィルタする
-								const sColId = oTargetRootControl.getColumns().filter(oCol => oCol.getVisible())[iVlisibledColIndex].getId();
+								
 								if (aInvalidRowCols) {
 									if (!aInvalidRowCols.some(oInvalidRowCol => oInvalidRowCol.rowIndex === i && oInvalidRowCol.columnId === sColId)) {
 										aInvalidRowCols.push({rowPath: `${oTableBindingPath}/${i}`, rowIndex: i, columnId: sColId});
@@ -645,10 +649,10 @@ sap.ui.define([
 			}
 			if (!isValid) {
 				if (!this._mTableIdAttachedRowsUpdated.has(oTargetRootControl.getId())) {
-					if (!this._debouncedRenewValueStateAndMessageInTable) {
-						this._debouncedRenewValueStateAndMessageInTable = debounceEventHandler(this, this._renewValueStateAndMessageInTable, 100);
+					if (!this._debouncedRenewValueStateInTable) {
+						this._debouncedRenewValueStateInTable = debounceEventHandler(this, this._renewValueStateInTable, 100);
 					}
-					oTargetRootControl.attachRowsUpdated(this._debouncedRenewValueStateAndMessageInTable, this);
+					oTargetRootControl.attachRowsUpdated(this._debouncedRenewValueStateInTable, this);
 					oTargetRootControl.attachSort(this._clearInValidRowColsInTable, this);
 					oTargetRootControl.attachFilter(this._clearInValidRowColsInTable, this);
 					oTargetRootControl.attachModelContextChange(this._clearInValidRowColsInTable, this);
@@ -750,12 +754,11 @@ sap.ui.define([
 
 	/**
 	 * sap.ui.table.Table#rowsUpdated イベント用のハンドラ
-	 * テーブルの画面に表示されている行について、ValueState, ValueText を最新化し、
-	 * スクロール外で表示されていない行のエラーについて MessageModel から自動的に削除されている Message を登録し直す。
+	 * テーブルの画面に表示されている行について、ValueState, ValueText を最新化する。
 	 * 
 	 * @param {sap.ui.base.Event} oEvent イベント
 	 */
-	Validator.prototype._renewValueStateAndMessageInTable = function(oEvent) {
+	Validator.prototype._renewValueStateInTable = function(oEvent) {
 		const oTable = oEvent.getSource();
 		const aInvalidRowCols = this._invalidTableRowCols.get(oTable.getId());
 		if (!aInvalidRowCols) {
@@ -793,47 +796,6 @@ sap.ui.define([
 				this._setValueState(oInvalidCell, ValueState.Error, sMessageText);
 			}
 		}
-
-		// スクロール等により画面から見えなくなった行の Message は MessageModel から自動的に削除されてしまうので、追加し直す。
-		const sValidatorMessageName = _ValidatorMessage.getMetadata().getName();
-		const aMessages = sap.ui.getCore().getMessageManager().getMessageModel().getProperty("/").filter(oMessage => oMessage.fullTarget && BaseObject.isA(oMessage, sValidatorMessageName));
-		const mBeforeValueStateMap = new Map();
-		for (let i = 0, n = aInvalidRowCols.length; i < n; i++) {
-			const oColumn = Element.registry.get(aInvalidRowCols[i].columnId);
-			if (!oColumn) {
-				continue;
-			}
-			if (!aMessages.some(oMessage => {
-				if (oMessage.fullTarget !== aInvalidRowCols[i].rowPath) {
-					return false;
-				}
-				const oControl = Element.registry.get(oMessage.getControlId());
-				if (!oControl || !(oControl.getParent() && oControl.getParent().getParent() === oTable)) {
-					return false;
-				}	
-				const iVisibledColIndex = this._toVisibledColumnIndex(oTable, oTable.indexOfColumn(oColumn));
-				return oControl.getParent().indexOfCell(oControl) === iVisibledColIndex;
-			})) {
-				const iVisibledColIndex = this._toVisibledColumnIndex(oTable, oTable.indexOfColumn(oColumn));
-				// コントロールがどの行にあるかは画面に表示されていないデータ行のことを考えると意味がないため1行目固定とする。
-				// 実際の行は Message.fullTarget でわかるようにしている。
-				const oControl = oTable.getRows()[0].getCells()[iVisibledColIndex];
-				const sMessageText = this._getRequiredErrorMessageTextByControl(oControl);
-				const oBeforeValueState = oControl.getValueState ? oControl.getValueState() : null;
-				if (oBeforeValueState && !mBeforeValueStateMap.has(oControl.getId())) {
-					mBeforeValueStateMap.set(oControl.getId(), {control: oControl, valueState: oBeforeValueState, valueStateText: oControl.getValueStateText()});
-				}
-				this._addMessage(oControl, sMessageText, aInvalidRowCols[i].rowPath);
-			}
-		}
-		// 1行目固定のコントロールで Message を登録しているが、Message を追加すると自動的にそのコントロールに ValueState, ValueStateText がセットされてしまうので
-		// 元々の値を非同期でセットし直す。
-		setTimeout(() => {
-			mBeforeValueStateMap.forEach((val) => {
-				val.control.setValueState(val.valueState);
-				val.control.setValueStateText(val.valueStateText);
-			});
-		}, 0);
 	};
 
 	/**
@@ -1155,16 +1117,14 @@ sap.ui.define([
 	Validator.prototype._notRegisteredValidator = function(oEvent, sMessageText) {
 		const oControl = oEvent.getSource();
 		if (this._isNullValue(oControl)) {
-			this._addMessage(oControl, sMessageText);
-			this._setValueState(oControl, ValueState.Error, sMessageText);
-
-			// sap.ui.table.Tableのセルの場合、_invalidTableRowColsになければ追加する
 			if (oControl.getParent() && oControl.getParent().getParent() instanceof sapUiTableTable) {
 				const oTable = oControl.getParent().getParent();
 				if (oTable.getBinding("rows") && oTable.getBinding("rows").getModel() instanceof JSONModel) {
+					// sap.ui.table.Tableのセルの場合、_invalidTableRowColsになければ追加する
 					const sTableBindingPath = oTable.getBinding("rows").getPath();
 					const iVisibledColIndex = oControl.getParent().indexOfCell(oControl);
-					const sColId = oTable.getColumns().filter(oColumn => oColumn.getVisible())[iVisibledColIndex].getId();
+					const oColumn = oTable.getColumns().filter(oColumn => oColumn.getVisible())[iVisibledColIndex];
+					const sColId = oColumn.getId();
 					const sTableModelName = oTable.getBindingInfo("rows").model;
 					const sRowBindingPath = oControl.getParent().getCells()[iVisibledColIndex].getBindingContext(sTableModelName).getPath();
 					const iRowIndex = parseInt(sRowBindingPath.replace(`${sTableBindingPath}/`, ""), 10);
@@ -1176,25 +1136,51 @@ sap.ui.define([
 					} else {
 						this._invalidTableRowCols.set(oTable.getId(), [{rowPath: sRowBindingPath, rowIndex: iRowIndex, columnId: sColId}]);
 					}
+					this._addMessage(oColumn, sMessageText, sRowBindingPath, null, this._getLabelText(oControl));
+				} else {
+					this._addMessage(oControl, sMessageText);
 				}
+			} else {
+				this._addMessage(oControl, sMessageText);
 			}
+			this._setValueState(oControl, ValueState.Error, sMessageText);
 		} else {
-			this._removeMessageAndValueState(oControl);
-			
-			// sap.ui.table.Tableのセルの場合、_invalidTableRowColsから削除する
 			if (oControl.getParent() && oControl.getParent().getParent() instanceof sapUiTableTable) {
 				const oTable = oControl.getParent().getParent();
 				if (oTable.getBinding("rows") && oTable.getBinding("rows").getModel() instanceof JSONModel) {
+					// sap.ui.table.Tableのセルの場合、_invalidTableRowColsから削除する
 					let aInvalidRowCols = this._invalidTableRowCols.get(oTable.getId());
 					if (!aInvalidRowCols) {
 						return;
 					}
 					const iVisibledColIndex = oControl.getParent().indexOfCell(oControl);
+					const oColumn = oTable.getColumns().filter(oColumn => oColumn.getVisible())[iVisibledColIndex];
+					const sColId = oColumn.getId();
 					const sTableModelName = oTable.getBindingInfo("rows").model;
 					const sRowBindingPath = oControl.getParent().getCells()[iVisibledColIndex].getBindingContext(sTableModelName).getPath();
-					aInvalidRowCols = aInvalidRowCols.filter(oInvalidRowCol => sRowBindingPath !== oInvalidRowCol.rowPath);
+					aInvalidRowCols = aInvalidRowCols.filter(oInvalidRowCol => oInvalidRowCol.rowPath !== sRowBindingPath || oInvalidRowCol.columnId !== sColId);
 					this._invalidTableRowCols.set(oTable.getId(), aInvalidRowCols);
+				
+					// sap.ui.table.Table 配下のセルの場合、MessageModel に登録している Message の control は sap.ui.table.Column なので
+					// Message の削除は Column 指定で行い、セルの ValueState, ValueText のクリアはセル指定で行う。
+					const oMessageManager = sap.ui.getCore().getMessageManager();
+					const oMessageModel = oMessageManager.getMessageModel();
+					const sValidatorMessageName = _ValidatorMessage.getMetadata().getName();
+					const sColumnId = oColumn.getId();
+
+					const oMessage = oMessageModel.getProperty("/").find(oMsg =>
+						BaseObject.isA(oMsg, sValidatorMessageName) &&
+						oMsg.getControlId() === sColumnId &&
+						oMsg.fullTarget === sRowBindingPath);
+					if (oMessage) {
+						oMessageManager.removeMessages(oMessage);
+					}
+					this._clearValueStateIfNoErrors(oControl, this._resolveMessageTarget(oControl));
+				} else {
+					this._removeMessageAndValueState(oControl);
 				}
+			} else {
+				this._removeMessageAndValueState(oControl);
 			}
 		}
 	};
@@ -1553,10 +1539,11 @@ sap.ui.define([
 	 * @private
 	 * @param {sap.ui.core.Control|sap.ui.core.Control[]} oControlOrAControls 検証エラーとなったコントロール
 	 * @param {string} sMessageText エラーメッセージ
-	 * @param {string} [fullTarget]
+	 * @param {string} [fullTarget] Message#fullTarget
 	 * @param {string} [sValidateFunctionId] 検証を行った関数のID。this._mRegisteredValidator に含まれる関数で検証した場合にのみ必要
+	 * @param {string} [sAdditionalText] Message#additionalText
 	 */
-	Validator.prototype._addMessage = function(oControlOrAControls, sMessageText, fullTarget, sValidateFunctionId) {
+	Validator.prototype._addMessage = function(oControlOrAControls, sMessageText, fullTarget, sValidateFunctionId, sAdditionalText) {
 		let oControl;
 		let aControls;
 		if (Array.isArray(oControlOrAControls)) {
@@ -1569,7 +1556,7 @@ sap.ui.define([
 		sap.ui.getCore().getMessageManager().addMessages(new _ValidatorMessage({
 			message: sMessageText,
 			type: MessageType.Error,
-			additionalText: this._getLabelText(oControl),
+			additionalText: sAdditionalText || this._getLabelText(oControl),
 			processor: new ControlMessageProcessor(),
 			target: this._resolveMessageTarget(oControlOrAControls),
 			fullTarget: fullTarget ? fullTarget : "",

@@ -213,22 +213,24 @@ sap.ui.define([
 							}
 						}
 						if (fullTarget
-							&& oControl.getParent()
-							&& oControl.getParent().getParent() instanceof sapUiTableTable
-							&& oControl.getParent().getParent().getBinding("rows").getModel() instanceof JSONModel) {
+							&& oControl.getParent() instanceof sapUiTableTable
+							&& oControl.getParent().getBinding("rows").getModel() instanceof JSONModel) {
 							// sap.ui.table.Table 配下のコントロールは画面に表示されている数だけしか存在せず、スクロール時は BindingContext が変わっていくだけなので、
 							// Message.getControlId のコントロールが現在もエラーかどうかはわからない。
 							// ui5-Validator でfullTargetにエラーの行インデックスがセットされているので、その行に一旦スクロールさせてその行がバインドされてるコントロールを取得して、そのコントロールにフォーカスする。
-							const oRow = oControl.getParent();
-							const oTable = oRow.getParent();
-							const iColumnIndex = oRow.indexOfCell(oControl);
+							const oColumn = oControl;
+							const oTable = oColumn.getParent();
 							const iTargetDataRowIndex = fullTarget.replace(`${oTable.getBinding("rows").getPath()}/`, "");
-							oTable.setFirstVisibleRow(iTargetDataRowIndex);
+							const iColumnIndex = oTable.getColumns().filter(oCol => oCol.getVisible()).findIndex(oCol => oCol.getId() === oColumn.getId());
+							if (iColumnIndex === -1) {
+								return;
+							}
 							const sTableModelName = oTable.getBindingInfo("rows").model;
 
+							oTable.setFirstVisibleRow(iTargetDataRowIndex);
 							// このあと行うoTable.getRows()はスクロールが終わってからでないと対象の行を取得できないので、sleepさせる。
 							await new Promise((resolve) => setTimeout(resolve, 100));
-							
+
 							oControl = oTable.getRows().find(oRow => oRow.getCells()[iColumnIndex].getBindingContext(sTableModelName).getPath() === fullTarget).getCells()[iColumnIndex];
 							if (!oControl) {
 								return;
