@@ -144,7 +144,14 @@ sap.ui.define([
 			this._mControlIdAttachedValidator = new Map();
 
 			// sap.ui.table.Table にバインドされているデータで、バリデーションエラーとなったデータの行・列情報を保持するマップ。型は Map<String, Object>
-			// key: テーブルID, value: {rowPath: sap.ui.table.Rowのバインディングパス, rowIndex: 行インデックス, columnId: 列ID, message: エラーメッセージ}
+			// key: テーブルID,
+			// value: {
+			//   rowPath: sap.ui.table.Rowのバインディングパス,
+			//   rowIndex: 行インデックス,
+			//   columnId: 列ID,
+			//   message: エラーメッセージ,
+			//   validateFunctionId: registerValidator/registerRequiredValidatorで登録されたバリデータID or ""(デフォルトの必須バリデータの場合)
+		    // }
 			this._invalidTableRowCols = new Map();
 			// _invalidTableRowCols を使ってスクロール時に配下のコントロールのValueStateの最新化を行うためのイベントハンドラをアタッチした sap.ui.table.Table のIDのセット
 			this._mTableIdAttachedRowsUpdated = new Set();
@@ -693,12 +700,6 @@ sap.ui.define([
 			if (!isValid) {
 				this._attachTableRowsUpdater(oTargetRootControl);
 			}
-			if (this._mTableIdAttachedRowsUpdated.has(oTargetRootControl.getId())) {
-				// MessageModelにエラーメッセージがあると、MessageのcontrolIdのコントロールに対してValueState.ErrorがUI5により自動的にセットされてしまうが、
-				// そのコントロールはスクロールにより今バインドされているデータはエラーではなくなっている可能性もあるため、rowsUpdatedイベントを発火させる。
-				// UI5の自動セット後に発火させるため、遅延させる。
-				setTimeout(() => oTargetRootControl.fireRowsUpdated(), 100);
-			}
 		// sap.ui.table.Table の場合は普通にaggregationを再帰的に処理すると存在しない行も処理対象になってしまうため、
 		// Table.getBinding().getLength() してその行までの getRows() の getCells() のコントロールを検証する。
 		} else if (oTargetRootControl instanceof sapUiTableTable && oTargetRootControl.getBinding("rows")) {
@@ -868,11 +869,11 @@ sap.ui.define([
 		const aInvalidRowCols = this._invalidTableRowCols.get(sTableId);
 		
 		if (aInvalidRowCols) {
-			if (!aInvalidRowCols.some(oInvalidRowCol => oInvalidRowCol.rowIndex === iTableDataIndex && oInvalidRowCol.columnId === sColId && oInvalidRowCol.message === sMessageText)) {
-				aInvalidRowCols.push({rowPath: `${sTableBindingPath}/${iTableDataIndex}`, rowIndex: iTableDataIndex, columnId: sColId, message: sMessageText});
+			if (!aInvalidRowCols.some(oInvalidRowCol => oInvalidRowCol.rowIndex === iTableDataIndex && oInvalidRowCol.columnId === sColId && oInvalidRowCol.validateFunctionId === (sValidateFunctionId || ""))) {
+				aInvalidRowCols.push({rowPath: `${sTableBindingPath}/${iTableDataIndex}`, rowIndex: iTableDataIndex, columnId: sColId, message: sMessageText, validateFunctionId: sValidateFunctionId || ""});
 			}
 		} else {
-			this._invalidTableRowCols.set(sTableId, [{rowPath: `${sTableBindingPath}/${iTableDataIndex}`, rowIndex: iTableDataIndex, columnId: sColId, message: sMessageText}]);
+			this._invalidTableRowCols.set(sTableId, [{rowPath: `${sTableBindingPath}/${iTableDataIndex}`, rowIndex: iTableDataIndex, columnId: sColId, message: sMessageText, validateFunctionId: sValidateFunctionId || ""}]);
 		}
 	};
 
@@ -1223,11 +1224,11 @@ sap.ui.define([
 					const iRowIndex = parseInt(sRowBindingPath.replace(`${sTableBindingPath}/`, ""), 10);
 					const aInvalidRowCols = this._invalidTableRowCols.get(oTable.getId());
 					if (aInvalidRowCols) {
-						if (!aInvalidRowCols.some(oInvalidRowCol => oInvalidRowCol.rowPath === sRowBindingPath && oInvalidRowCol.columnId === sColId && oInvalidRowCol.message === sMessageText)) {
-							aInvalidRowCols.push({rowPath: sRowBindingPath, rowIndex: iRowIndex, columnId: sColId, message: sMessageText});
+						if (!aInvalidRowCols.some(oInvalidRowCol => oInvalidRowCol.rowPath === sRowBindingPath && oInvalidRowCol.columnId === sColId && oInvalidRowCol.validateFunctionId === "")) {
+							aInvalidRowCols.push({rowPath: sRowBindingPath, rowIndex: iRowIndex, columnId: sColId, message: sMessageText, validateFunctionId: ""});
 						}
 					} else {
-						this._invalidTableRowCols.set(oTable.getId(), [{rowPath: sRowBindingPath, rowIndex: iRowIndex, columnId: sColId, message: sMessageText}]);
+						this._invalidTableRowCols.set(oTable.getId(), [{rowPath: sRowBindingPath, rowIndex: iRowIndex, columnId: sColId, message: sMessageText, validateFunctionId: ""}]);
 					}
 					this._addMessage(oColumn, sMessageText, sRowBindingPath, null, this._getLabelText(oControl));
 				} else {
@@ -1251,7 +1252,7 @@ sap.ui.define([
 					const sColId = oColumn.getId();
 					const sTableModelName = oTable.getBindingInfo("rows").model;
 					const sRowBindingPath = oControl.getParent().getCells()[iVisibledColIndex].getBindingContext(sTableModelName).getPath();
-					aInvalidRowCols = aInvalidRowCols.filter(oInvalidRowCol => oInvalidRowCol.rowPath !== sRowBindingPath || oInvalidRowCol.columnId !== sColId || oInvalidRowCol.message !== sMessageText);
+					aInvalidRowCols = aInvalidRowCols.filter(oInvalidRowCol => oInvalidRowCol.rowPath !== sRowBindingPath || oInvalidRowCol.columnId !== sColId || oInvalidRowCol.validateFunctionId !== "");
 					this._invalidTableRowCols.set(oTable.getId(), aInvalidRowCols);
 				
 					// sap.ui.table.Table 配下のセルの場合、MessageModel に登録している Message の control は sap.ui.table.Column なので
@@ -1268,10 +1269,7 @@ sap.ui.define([
 						oMsg.getMessage() === sMessageText);
 					if (oMessage) {
 						oMessageManager.removeMessages(oMessage);
-
-						this._attachTableRowsUpdater(oTable);
-						oTable.fireRowsUpdated();
-						// this._clearValueStateIfNoErrors(oControl, this._resolveMessageTarget(oControl));
+						this._clearValueStateIfNoErrors(oControl, sRowBindingPath);
 					}
 				} else {
 					this._removeMessageAndValueState(oControl);
@@ -1313,7 +1311,7 @@ sap.ui.define([
 					if (!aInvalidRowCols) {
 						return;
 					}
-					aInvalidRowCols = aInvalidRowCols.filter(oInvalidRowCol => oInvalidRowCol.rowPath !== sRowBindingPath || oInvalidRowCol.columnId !== oColumn.getId() || oInvalidRowCol.message !== oData.messageText);
+					aInvalidRowCols = aInvalidRowCols.filter(oInvalidRowCol => oInvalidRowCol.rowPath !== sRowBindingPath || oInvalidRowCol.columnId !== oColumn.getId() || oInvalidRowCol.validateFunctionId !== oData.validateFunctionId);
 					this._invalidTableRowCols.set(sTableId, aInvalidRowCols);
 
 					// sap.ui.table.Table 配下のセルの場合、MessageModel に登録している Message の control は sap.ui.table.Column なので
@@ -1330,10 +1328,7 @@ sap.ui.define([
 						oMsg.getMessage() === oData.messageText);
 					if (oMessage) {
 						oMessageManager.removeMessages(oMessage);
-
-						this._attachTableRowsUpdater(oTable);
-						oTable.fireRowsUpdated();
-						// this._clearValueStateIfNoErrors(oControl, this._resolveMessageTarget(oControl));
+						this._clearValueStateIfNoErrors(oControl, sRowBindingPath);
 					}
 				} else {
 					oData.controls.forEach(oCtl => {
@@ -1359,6 +1354,8 @@ sap.ui.define([
 				const sLabelText = this._getLabelText(oControl);
 				this._addMessageAndInvalidTableRowCol(oColumn, sTableBindingPath, iRowIndex, oData.messageText, sLabelText, oData.validateFunctionId);
 				this._setValueState(oControl, ValueState.Error, oData.messageText);
+
+				this._attachTableRowsUpdater(oTable);
 			} else if (oData.isGroupedTargetControls) {
 				this._addMessage(oData.controls, oData.messageText, null, oData.validateFunctionId);
 				
@@ -1417,29 +1414,24 @@ sap.ui.define([
 	 * 該当のコントロールにエラーメッセージがまだあるか確認し、ない場合にのみエラーステートをクリアする。
 	 * 
 	 * @param {sap.ui.core.Control} oControl 処理対象のコントロール
-	 * @param {string|string[]} sTargetOrATargets セットされているメッセージの中から対象のコントロールのメッセージを判別するための Message の target/targets プロパティ値
+	 * @param {string|string[]} sTargetOrATargetsOrsFullTarget セットされているメッセージの中から対象のコントロールのメッセージを判別するための Message の target/targets or fullTarget プロパティ値
 	 */
-	Validator.prototype._clearValueStateIfNoErrors = function(oControl, sTargetOrATargets) {
+	Validator.prototype._clearValueStateIfNoErrors = function(oControl, sTargetOrATargetsOrsFullTarget) {
 		if (!oControl.setValueState) {
 			return;
 		}
 		let aTargets;
-		if (!Array.isArray(sTargetOrATargets)) {
-			aTargets = [sTargetOrATargets];
-		} else if (sTargetOrATargets.length === 0) {
+		if (!Array.isArray(sTargetOrATargetsOrsFullTarget)) {
+			aTargets = [sTargetOrATargetsOrsFullTarget];
+		} else if (sTargetOrATargetsOrsFullTarget.length === 0) {
 			return;
 		} else {
-			aTargets = sTargetOrATargets;
+			aTargets = sTargetOrATargetsOrsFullTarget;
 		}
 
 		const aMessages = sap.ui.getCore().getMessageManager().getMessageModel().getProperty("/");
 		aTargets.forEach(sTarget => {
-			if (!aMessages.find(oMessage => {
-				if (oMessage.getTargets) {
-					return oMessage.getTargets().includes(sTarget);
-				}
-				return oMessage.getTarget() === sTarget;
-			})) {
+			if (!aMessages.find(oMessage => (oMessage.getTargets && oMessage.getTargets().includes(sTarget)) || oMessage.getTarget() === sTarget || oMessage.fullTarget === sTarget)) {
 				this._setValueState(oControl, ValueState.None, null);
 			}
 		});
