@@ -1,8 +1,9 @@
 sap.ui.define([
+	"sap/m/Input",
 	"sap/ui/model/json/JSONModel",
 	"./BaseController",
 	"learnin/ui5/validator/Validator"
-], function (JSONModel, BaseController, Validator) {
+], function (Input, JSONModel, BaseController, Validator) {
 	"use strict";
 
 	return BaseController.extend("learnin.ui5.validator.example.controller.ValidatorExample", {
@@ -162,7 +163,7 @@ sap.ui.define([
 			this._validator.registerValidator(
 				(aCheckBoxes) => {
 					const selectedCheckBoxes = aCheckBoxes.filter(oCheckBox => oCheckBox.getSelected());
-					return 1 <= selectedCheckBoxes.length && selectedCheckBoxes.length <=3;
+					return 1 <= selectedCheckBoxes.length && selectedCheckBoxes.length <= 3;
 				},
 				this.getResourceText("message.selectNToN", this.getResourceText("word.one"), this.getResourceText("word.three")),
 				oView.byId("requiredCheckBoxCustom1to3").getItems(),
@@ -197,6 +198,47 @@ sap.ui.define([
 					controlsMoreAttachValidator: oView.byId("correlationRequiredRadioGroup")
 				}
 			);
+
+			// テーブル内の単項目バリデーション
+			this._validator.registerValidator(
+				(oInputOrValue) => {
+					let sValue = oInputOrValue;
+					if (oInputOrValue instanceof Input) {
+						sValue = oInputOrValue.getValue();
+					}
+					return !sValue || sValue.length <= 2;
+				},
+				"Please enter up to 2 letters.",
+				oView.byId("col3InGridTable"),
+				oView.byId("gridTable"),	// sap.ui.table.Table 内のコントロールをバリデーションする場合、ここは sap.ui.table.Table を渡す
+			);
+			
+			// テーブル内の同一項目、行違い項目の相関バリデーション
+			// this._validator.registerValidator(
+			// 	() => {
+			// 		const oTable = this.byId("gridTable");
+			// 		const dToDateValue = oToDate.getDateValue();
+			// 		// 必須チェックは別でやっているのでここでエラーにするのは両方入力されていて値が不正な場合のみ
+			// 		return !(dFromDateValue && dToDateValue && dFromDateValue.getTime() > dToDateValue.getTime());
+			// 	},
+			// 	[
+			// 		this.getResourceText("message.dateBeforeDate", this.getResourceText("label.startDate"), this.getResourceText("label.endDate")),
+			// 		this.getResourceText("message.dateAfterDate", this.getResourceText("label.endDate"), this.getResourceText("label.startDate"))
+			// 	],	// "From date と To dare の大小関係を正しく入力してください" も可能
+			// 	oView.byId("col3InGridTable"),
+			// 	oView.byId("gridTable"),		// sap.ui.table.Table 内のコントロールをバリデーションする場合、ここは sap.ui.table.Table を渡す
+			// 	{isGroupedTargetControls: true}
+			// );
+
+			// テーブル内の同一行、項目相関バリデーション
+			// this._validator.registerValidator(
+			// 	(sValue) => {
+			// 		return !sValue || sValue.length <= 2;
+			// 	},
+			// 	"2桁以内で入力してください",
+			// 	[oView.byId("col1InGridTable"), oView.byId("col3InGridTable")],
+			// 	oView.byId("gridTable"),		// sap.ui.table.Table 内のコントロールをバリデーションする場合、ここは sap.ui.table.Table を渡す
+			// );
 		},
 		onShowErrors: function () {
 			this.showValidationErrorMessageDialog();

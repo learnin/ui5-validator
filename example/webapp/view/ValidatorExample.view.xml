@@ -129,9 +129,9 @@
 									path: 'inGridTable>/data',
 									templateShareable: false
 								}">
-								<table:Column label="Not required Input string label in GridTable">
+								<table:Column id="col1InGridTable" label="Not required Input string label in GridTable">
 									<table:template>
-										<Input id="requiredInputStringLabelInGridTable" value="{inGridTable>requiredInputStringLabel}" />
+										<Input id="notRequiredInputStringLabelInGridTable" value="{inGridTable>requiredInputStringLabel}" />
 									</table:template>
 								</table:Column>
 								<table:Column label="Invisible Input string label in GridTable" visible="false">
@@ -139,7 +139,7 @@
 										<Input id="InvisibleInputStringLabelInGridTable" />
 									</table:template>
 								</table:Column>
-								<table:Column>
+								<table:Column id="col3InGridTable">
 									<Label text="Required Input Label in GridTable" labelFor="requiredInputLabelInGridTable" />
 									<table:template>
 										<Input id="requiredInputLabelInGridTable" value="{inGridTable>requiredInputLabel}" required="true" />
