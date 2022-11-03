@@ -141,16 +141,25 @@ sap.ui.define([
 			this._mRegisteredValidator = new Map();
 
 			// フォーカスアウト時のバリデーション関数が attach されたコントロールIDを保持するマップ。型は Map<String, Object>
+			// key: コントロールID,
+			// value: {
+			//	 registered: {boolean} registerValidator/registerRequiredValidator で登録されたバリデータかどうか
+			//   notRegistered: {boolean} 標準の必須バリデータか
+			// }
+			// 
+			// 1つのコントロールに同時にアタッチされるバリデータは最大で registered と notRegistered の2つのみであり、registered バリデータは最初に registerValidator/registerRequiredValidator されたものがアタッチされる。
+			// registerValidator/registerRequiredValidator でアタッチされるバリデータ関数はその内容によらず1つのみ（this._registeredvalidator）であり、パラメータで実際に検証する関数を渡す構造としている。
+			// なので、ユーザの動きとしては、最初にエラーになった内容を修正すると一旦、valueState はクリアされ、ボタン押下等で validate が実行されると、別のバリデータによりエラーがあった場合は再度エラーになる形となる。
 			this._mControlIdAttachedValidator = new Map();
 
 			// sap.ui.table.Table にバインドされているデータで、バリデーションエラーとなったデータの行・列情報を保持するマップ。型は Map<String, Object>
 			// key: テーブルID,
 			// value: {
-			//   rowPath: sap.ui.table.Rowのバインディングパス,
-			//   rowIndex: 行インデックス,
-			//   columnId: 列ID,
-			//   message: エラーメッセージ,
-			//   validateFunctionId: registerValidator/registerRequiredValidatorで登録されたバリデータID or ""(デフォルトの必須バリデータの場合)
+			//   rowPath: {string} sap.ui.table.Rowのバインディングパス,
+			//   rowIndex: {number} 行インデックス,
+			//   columnId: {string} 列ID,
+			//   message: {string} エラーメッセージ,
+			//   validateFunctionId: {string} registerValidator/registerRequiredValidatorで登録されたバリデータID or ""(デフォルトの必須バリデータの場合)
 		    // }
 			this._invalidTableRowCols = new Map();
 			// _invalidTableRowCols を使ってスクロール時に配下のコントロールのValueStateの最新化を行うためのイベントハンドラをアタッチした sap.ui.table.Table のIDのセット
@@ -360,7 +369,6 @@ sap.ui.define([
 
 		let isTargetEqualsSapUiTableColumn = false;
 		let fnValidateFunction;
-		// TODO: 一旦、非配列パターンのみを実装
 		if (oTargetControlOrAControls instanceof sapUiTableColumn && oTargetControlOrAControls.getParent().getBinding("rows") && oTargetControlOrAControls.getParent().getBinding("rows").getModel() instanceof JSONModel) {
 			isTargetEqualsSapUiTableColumn = true;
 			fnValidateFunction = oValidatorInfo => {
@@ -384,13 +392,26 @@ sap.ui.define([
 				}
 				const sLabelText = this._getLabelText(oTargetCell);
 				let isValid = true;
-				for (let i = 0, n = aModelDataRecords.length; i < n; i++) {
-					const oValue = aModelDataRecords[i][oTargetCell.getBindingPath(sTargetPropertyName)];
-					if (fnTest(oValue)) {
-						continue;
+				if (oValidatorInfo.isGroupedTargetControls) {
+					const aValues = [];
+					const aTableDataRowIndices = [];
+					for (let i = 0, n = aModelDataRecords.length; i < n; i++) {
+						aValues.push(aModelDataRecords[i][oTargetCell.getBindingPath(sTargetPropertyName)]);
+						aTableDataRowIndices.push(i);
 					}
-					isValid = false;
-					this._addMessageAndInvalidTableRowCol(oColumn, sTableBindingPath, i, oValidatorInfo.messageTextOrMessageTexts, sLabelText, oValidatorInfo.validateFunctionId);
+					if (!fnTest(aValues)) {
+						isValid = false;
+						this._addMessageAndInvalidTableRowCol(oColumn, sTableBindingPath, aTableDataRowIndices, oValidatorInfo.messageTextOrMessageTexts, sLabelText, oValidatorInfo.validateFunctionId);
+					}
+				} else {
+					for (let i = 0, n = aModelDataRecords.length; i < n; i++) {
+						const oValue = aModelDataRecords[i][oTargetCell.getBindingPath(sTargetPropertyName)];
+						if (fnTest(oValue)) {
+							continue;
+						}
+						isValid = false;
+						this._addMessageAndInvalidTableRowCol(oColumn, sTableBindingPath, [i], oValidatorInfo.messageTextOrMessageTexts, sLabelText, oValidatorInfo.validateFunctionId);
+					}
 				}
 				return isValid;
 			};
@@ -470,21 +491,31 @@ sap.ui.define([
 		
 		if (oParam.isAttachFocusoutValidationImmediately) {
 			if (isTargetEqualsSapUiTableColumn) {
-				// バリデーション対象が sap.ui.table.Column の場合は、その列のセルすべてに対してフォーカスアウト用バリデータをアタッチする。
+				// バリデーション対象が sap.ui.table.Column の場合
 				const oColumn = oTargetControlOrAControls;
 				const oTable = oColumn.getParent();
 				const iVisibledColIndex = oTable.getColumns().filter(oCol => oCol.getVisible()).findIndex(oCol => oCol.getId() === oColumn.getId());
 				if (iVisibledColIndex > 0) {
 					const aTargetCells = oTable.getRows().map(oRow => oRow.getCells()[iVisibledColIndex]);
-					aTargetCells.forEach(oTargetCell => {
+					if (oParam.isGroupedTargetControls) {
 						this._attachRegisteredValidator(
-							oTargetCell,
+							aTargetCells,
 							fnTest,
 							sMessageTextOrAMessageTexts,
 							sValidateFunctionId,
 							oParam.isGroupedTargetControls,
 							oParam.controlsMoreAttachValidator);
-					});
+					} else {
+						aTargetCells.forEach(oTargetCell => {
+							this._attachRegisteredValidator(
+								oTargetCell,
+								fnTest,
+								sMessageTextOrAMessageTexts,
+								sValidateFunctionId,
+								oParam.isGroupedTargetControls,
+								oParam.controlsMoreAttachValidator);
+						});
+					}
 				}
 			} else {
 				this._attachRegisteredValidator(
@@ -691,7 +722,7 @@ sap.ui.define([
 								const iVisibledColIndex = aRows[0].indexOfCell(aRequiredCells[j]);
 								// oRow.indexOfCell では visible=false のカラムはスキップされているのでインデックス値を合わせるためフィルタする
 								const oColumn = oTargetRootControl.getColumns().filter(oCol => oCol.getVisible())[iVisibledColIndex];
-								this._addMessageAndInvalidTableRowCol(oColumn, sTableBindingPath, i, sMessageText, this._getLabelText(aRequiredCells[j]), null);
+								this._addMessageAndInvalidTableRowCol(oColumn, sTableBindingPath, [i], sMessageText, this._getLabelText(aRequiredCells[j]), null);
 							}
 						}
 					}
@@ -700,6 +731,7 @@ sap.ui.define([
 			if (!isValid) {
 				this._attachTableRowsUpdater(oTargetRootControl);
 			}
+			oTargetRootControl.fireRowsUpdated();
 		// sap.ui.table.Table の場合は普通にaggregationを再帰的に処理すると存在しない行も処理対象になってしまうため、
 		// Table.getBinding().getLength() してその行までの getRows() の getCells() のコントロールを検証する。
 		} else if (oTargetRootControl instanceof sapUiTableTable && oTargetRootControl.getBinding("rows")) {
@@ -852,29 +884,31 @@ sap.ui.define([
 	 * @private
 	 * @param {sap.ui.table.Column} oColumn 
 	 * @param {string} sTableBindingPath 
-	 * @param {number} iTableDataIndex 
+	 * @param {number} aTableDataRowIndices 
 	 * @param {string} sMessageText 
 	 * @param {string} sLabelText 
 	 * @param {string} sValidateFunctionId 
 	 */
-	 Validator.prototype._addMessageAndInvalidTableRowCol = function(oColumn, sTableBindingPath, iTableDataIndex, sMessageText, sLabelText, sValidateFunctionId) {
+	 Validator.prototype._addMessageAndInvalidTableRowCol = function(oColumn, sTableBindingPath, aTableDataRowIndices, sMessageText, sLabelText, sValidateFunctionId) {
 		// fullTarget にセットするのは 例えば以下で1行目がエラーなら "/data/0" となる
 		// <table:Table rows="{path: 'inGridTable>/data', templateShareable: false}">
 		// Message に紐付けるコントロールは、セルではなく列とする。セルだとスクロールによりコントロールとバインドされているデータが変わってしまうし、
 		// 画面から見えなくなると自動的に MessageModel から削除されてしまうので。
-		this._addMessage(oColumn, sMessageText, `${sTableBindingPath}/${iTableDataIndex}`, sValidateFunctionId, sLabelText);
+		this._addMessage(oColumn, sMessageText, `${sTableBindingPath}/${aTableDataRowIndices[0]}`, sValidateFunctionId, sLabelText);
 
 		const sTableId = oColumn.getParent().getId();
 		const sColId = oColumn.getId();
-		const aInvalidRowCols = this._invalidTableRowCols.get(sTableId);
+		let aInvalidRowCols = this._invalidTableRowCols.get(sTableId);
 		
-		if (aInvalidRowCols) {
-			if (!aInvalidRowCols.some(oInvalidRowCol => oInvalidRowCol.rowIndex === iTableDataIndex && oInvalidRowCol.columnId === sColId && oInvalidRowCol.validateFunctionId === (sValidateFunctionId || ""))) {
-				aInvalidRowCols.push({rowPath: `${sTableBindingPath}/${iTableDataIndex}`, rowIndex: iTableDataIndex, columnId: sColId, message: sMessageText, validateFunctionId: sValidateFunctionId || ""});
-			}
-		} else {
-			this._invalidTableRowCols.set(sTableId, [{rowPath: `${sTableBindingPath}/${iTableDataIndex}`, rowIndex: iTableDataIndex, columnId: sColId, message: sMessageText, validateFunctionId: sValidateFunctionId || ""}]);
+		if (!aInvalidRowCols) {
+			aInvalidRowCols = [];
+			this._invalidTableRowCols.set(sTableId, aInvalidRowCols);
 		}
+		aTableDataRowIndices.forEach(iTableDataRowIndex => {
+			if (!aInvalidRowCols.some(oInvalidRowCol => oInvalidRowCol.rowIndex === iTableDataRowIndex && oInvalidRowCol.columnId === sColId && oInvalidRowCol.validateFunctionId === (sValidateFunctionId || ""))) {
+				aInvalidRowCols.push({rowPath: `${sTableBindingPath}/${iTableDataRowIndex}`, rowIndex: iTableDataRowIndex, columnId: sColId, message: sMessageText, validateFunctionId: sValidateFunctionId || ""});
+			}
+		});		
 	};
 
 	/**
@@ -1240,10 +1274,33 @@ sap.ui.define([
 	Validator.prototype._registeredvalidator = function(oEvent, oData) {
 		const oControl = oData.targetControl;
 		const oControlOrAControls = oData.controls.length > 1 ? oData.controls : oData.controls[0];
-		if (oData.test(oControlOrAControls)) {
-			// TODO: 一旦、非配列パターンのみを実装
+		let isValid;
+
+		// TODO: _validate と共通化できるところは切り出す
+		if (this._isCellInSapUiTableTableBindedJsonModel(oControl) && oData.isGroupedTargetControls) {
+			// バリデーション対象がテーブル内のセルで isGroupedTargetControls = true の場合は、列全体に対してのバリデーションとなるが、
+			// 列のコントロールをすべて渡しても、スクロールで見えていない行の値が取得できないので、テーブルにバインドされている該当列の値をすべて取得してバリデータ関数に渡す。
+			const oTable = oControl.getParent().getParent();
+			const oTableBinding = oTable.getBinding("rows");
+			const sTableBindingPath = oTableBinding.getPath();
+			const aModelDataRecords = oTableBinding.getModel().getProperty(sTableBindingPath);
+			const sPropertyName = this._resolveBindingPropertyName(oControl);
+			const aValues = [];
+			for (let i = 0; i < aModelDataRecords.length; i++) {
+				aValues.push(aModelDataRecords[i][oControl.getBindingPath(sPropertyName)]);
+			}
+			isValid = oData.test(aValues);
+		} else {
+			isValid = oData.test(oControlOrAControls);
+		}
+		if (isValid) {
 			if (this._isCellInSapUiTableTableBindedJsonModel(oControl)) {
-				this._clearErrorCellInSapUiTableTable(oControl, oData.validateFunctionId);
+				if (oData.isGroupedTargetControls) {
+					// 自身以外の同じ列のコントロールの値が修正されてフォーカスアウトしたことで、自身も正常となるので対象コントロール達のエラーは解除する。
+					this._clearErrorCellInSapUiTableTable(oData.controls, oData.validateFunctionId);
+				} else {
+					this._clearErrorCellInSapUiTableTable(oControl, oData.validateFunctionId);
+				}
 			} else {
 				oData.controls.forEach(oCtl => {
 					// 例えば、日付の大小関係チェックのように、自身以外のコントロールの値が修正されてフォーカスアウトしたことで、自身も正常となるので対象コントロール達のエラーは解除する。
@@ -1251,9 +1308,12 @@ sap.ui.define([
 				});
 			}
 		} else {
-			// TODO: 一旦、非配列パターンのみを実装
 			if (this._isCellInSapUiTableTableBindedJsonModel(oControl)) {
-				this._setErrorCellInSapUiTableTable(oControl, oData.messageText, oData.validateFunctionId);
+				if (oData.isGroupedTargetControls) {
+					this._setErrorCellInSapUiTableTable(oData.controls, oData.messageText, oData.validateFunctionId);
+				} else {
+					this._setErrorCellInSapUiTableTable(oControl, oData.messageText, oData.validateFunctionId);
+				}
 			} else if (oData.isGroupedTargetControls) {
 				this._addMessage(oData.controls, oData.messageText, null, oData.validateFunctionId);
 				
@@ -1282,22 +1342,36 @@ sap.ui.define([
 	 * sap.ui.table.Table 内のセルについて、バリデーションエラー行・列情報への登録と、MessageModel への登録と ValueState/ValueText のセットを行います。
 	 * 
 	 * @private
-	 * @param {sap.ui.core.Control} oControl sap.ui.table.Table 内のセル
+	 * @param {sap.ui.core.Control|sap.ui.core.Control[]} oControlOrAControls sap.ui.table.Table 内のセル
 	 * @param {string} sMessageText メッセージ
 	 * @param {string} [sValidateFunctionId] registerValidator/registerRequiredValidator で登録したバリデータ関数のID、標準の必須バリデータの場合は "" or null or undefined
 	 */
-	Validator.prototype._setErrorCellInSapUiTableTable = function(oControl, sMessageText, sValidateFunctionId) {
+	Validator.prototype._setErrorCellInSapUiTableTable = function(oControlOrAControls, sMessageText, sValidateFunctionId) {
+		const oControl = Array.isArray(oControlOrAControls) ? oControlOrAControls[0] : oControlOrAControls;
 		const oRow = oControl.getParent();
 		const oTable = oRow.getParent();
 		const iVisibledColIndex = oRow.indexOfCell(oControl);
 		const oColumn = oTable.getColumns().filter(oColumn => oColumn.getVisible())[iVisibledColIndex];
-		const sTableBindingPath = oTable.getBinding("rows").getPath();
+		const oTableBinding = oTable.getBinding("rows");
+		const sTableBindingPath = oTableBinding.getPath();
 		const iRowIndex = oRow.getIndex();
 		const sLabelText = this._getLabelText(oControl);
 
-		this._addMessageAndInvalidTableRowCol(oColumn, sTableBindingPath, iRowIndex, sMessageText, sLabelText, sValidateFunctionId);
-		this._setValueState(oControl, ValueState.Error, sMessageText);
+		let aTableDataRowIndices = [iRowIndex];
+		if (Array.isArray(oControlOrAControls)) {
+			const iModelDataRecordsCount = oTableBinding.getModel().getProperty(sTableBindingPath).length;
+			aTableDataRowIndices = [];
+			for (let i = 0; i < iModelDataRecordsCount; i++) {
+				aTableDataRowIndices.push(i);
+			}
+		}
+		this._addMessageAndInvalidTableRowCol(oColumn, sTableBindingPath, aTableDataRowIndices, sMessageText, sLabelText, sValidateFunctionId);
 
+		if (Array.isArray(oControlOrAControls)) {
+			oControlOrAControls.forEach(oCtl => this._setValueState(oCtl, ValueState.Error, sMessageText));
+		} else {
+			this._setValueState(oControl, ValueState.Error, sMessageText);
+		}
 		this._attachTableRowsUpdater(oTable);
 	};
 
@@ -1305,10 +1379,11 @@ sap.ui.define([
 	 * sap.ui.table.Table 内のセルについて、保持しているバリデーションエラー行・列情報をクリアし、MessageModel からの削除と ValueState/ValueText のクリアを行います。
 	 * 
 	 * @private
-	 * @param {sap.ui.core.Control} oControl sap.ui.table.Table 内のセル
+	 * @param {sap.ui.core.Control|sap.ui.core.Control[]} oControlOrAControls sap.ui.table.Table 内のセル
 	 * @param {string} [sValidateFunctionId] registerValidator/registerRequiredValidator で登録したバリデータ関数のID、標準の必須バリデータの場合は "" or null or undefined
 	 */
-	Validator.prototype._clearErrorCellInSapUiTableTable = function(oControl, sValidateFunctionId) {
+	Validator.prototype._clearErrorCellInSapUiTableTable = function(oControlOrAControls, sValidateFunctionId) {
+		const oControl = Array.isArray(oControlOrAControls) ? oControlOrAControls[0] : oControlOrAControls;
 		const oRow = oControl.getParent();
 		const oTable = oRow.getParent();
 		const sTableId = oTable.getId();
@@ -1319,8 +1394,15 @@ sap.ui.define([
 		const iVisibledColIndex = oRow.indexOfCell(oControl);
 		const oColumn = oTable.getColumns().filter(oColumn => oColumn.getVisible())[iVisibledColIndex];
 		const sTableModelName = oTable.getBindingInfo("rows").model;
+		const sTableBindingPath = oTable.getBinding("rows").getPath();
 		const sRowBindingPath = oRow.getCells()[iVisibledColIndex].getBindingContext(sTableModelName).getPath();
-		aInvalidRowCols = aInvalidRowCols.filter(oInvalidRowCol => oInvalidRowCol.rowPath !== sRowBindingPath || oInvalidRowCol.columnId !== oColumn.getId() || oInvalidRowCol.validateFunctionId !== (sValidateFunctionId || ""));
+
+		if (Array.isArray(oControlOrAControls)) {
+			// 行は無視して、列とバリデーション関数IDが一致するものは全部削除する。
+			aInvalidRowCols = aInvalidRowCols.filter(oInvalidRowCol => oInvalidRowCol.columnId !== oColumn.getId() || oInvalidRowCol.validateFunctionId !== (sValidateFunctionId || ""));
+		} else {
+			aInvalidRowCols = aInvalidRowCols.filter(oInvalidRowCol => oInvalidRowCol.rowPath !== sRowBindingPath || oInvalidRowCol.columnId !== oColumn.getId() || oInvalidRowCol.validateFunctionId !== (sValidateFunctionId || ""));
+		}
 		this._invalidTableRowCols.set(sTableId, aInvalidRowCols);
 
 		// sap.ui.table.Table 配下のセルの場合、MessageModel に登録している Message の control は sap.ui.table.Column なので
@@ -1333,11 +1415,17 @@ sap.ui.define([
 		const oMessage = oMessageModel.getProperty("/").find(oMsg =>
 			BaseObject.isA(oMsg, sValidatorMessageName) &&
 			oMsg.getControlId() === sColumnId &&
-			oMsg.fullTarget === sRowBindingPath &&
+			// isGroupedTargetControls = true の場合、Message は1行目固定で1件だけ登録しているので、index = 0 固定でみる。
+			((Array.isArray(oControlOrAControls) && oMsg.fullTarget === `${sTableBindingPath}/0`) || (!Array.isArray(oControlOrAControls) && oMsg.fullTarget === sRowBindingPath)) &&
 			oMsg.getValidateFunctionId() === (sValidateFunctionId || ""));
 		if (oMessage) {
 			oMessageManager.removeMessages(oMessage);
-			this._clearValueStateIfNoErrors(oControl, sRowBindingPath);
+
+			if (Array.isArray(oControlOrAControls)) {
+				oControlOrAControls.forEach(oCtl => this._clearValueStateIfNoErrors(oCtl, sRowBindingPath));
+			} else {
+				this._clearValueStateIfNoErrors(oControl, sRowBindingPath);
+			}
 		}
 	};
 

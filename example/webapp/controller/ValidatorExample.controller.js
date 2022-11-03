@@ -209,26 +209,27 @@ sap.ui.define([
 					return !sValue || sValue.length <= 2;
 				},
 				"Please enter up to 2 letters.",
-				oView.byId("col3InGridTable"),
+				oView.byId("col3InGridTable"),	// sap.ui.table.Table 内のコントロールをバリデーションする場合、ここは sap.ui.table.Column を渡す
 				oView.byId("gridTable"),	// sap.ui.table.Table 内のコントロールをバリデーションする場合、ここは sap.ui.table.Table を渡す
 			);
 			
 			// テーブル内の同一項目、行違い項目の相関バリデーション
-			// this._validator.registerValidator(
-			// 	() => {
-			// 		const oTable = this.byId("gridTable");
-			// 		const dToDateValue = oToDate.getDateValue();
-			// 		// 必須チェックは別でやっているのでここでエラーにするのは両方入力されていて値が不正な場合のみ
-			// 		return !(dFromDateValue && dToDateValue && dFromDateValue.getTime() > dToDateValue.getTime());
-			// 	},
-			// 	[
-			// 		this.getResourceText("message.dateBeforeDate", this.getResourceText("label.startDate"), this.getResourceText("label.endDate")),
-			// 		this.getResourceText("message.dateAfterDate", this.getResourceText("label.endDate"), this.getResourceText("label.startDate"))
-			// 	],	// "From date と To dare の大小関係を正しく入力してください" も可能
-			// 	oView.byId("col3InGridTable"),
-			// 	oView.byId("gridTable"),		// sap.ui.table.Table 内のコントロールをバリデーションする場合、ここは sap.ui.table.Table を渡す
-			// 	{isGroupedTargetControls: true}
-			// );
+			this._validator.registerValidator(
+				(aInputsOrValues) => {
+					let aValues = aInputsOrValues;
+					if (aInputsOrValues[0] instanceof Input) {
+						aValues = aInputsOrValues.map(oInput => oInput.getValue());
+					}
+					return aValues.some(sValue => sValue === "0");
+				},
+				"いずれかの行に 0 を入力してください。",
+				oView.byId("col3InGridTable"),	// sap.ui.table.Table 内のコントロールをバリデーションする場合、ここは sap.ui.table.Column を渡す
+				oView.byId("gridTable"),		// sap.ui.table.Table 内のコントロールをバリデーションする場合、ここは sap.ui.table.Table を渡す
+				{
+					isGroupedTargetControls: true,
+					// isAttachValidator: false	// TODO
+				}
+			);
 
 			// テーブル内の同一行、項目相関バリデーション
 			// this._validator.registerValidator(
