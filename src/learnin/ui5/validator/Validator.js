@@ -1218,7 +1218,7 @@ sap.ui.define([
 			this._setValueState(oControl, ValueState.Error, sMessageText);
 		} else {
 			if (this._isCellInSapUiTableTableBindedJsonModel(oControl)) {
-				this._clearErrorCellInSapUiTableTable(oControl, sMessageText, null);
+				this._clearErrorCellInSapUiTableTable(oControl, null);
 			} else {
 				this._removeMessageAndValueState(oControl);
 			}
@@ -1243,7 +1243,7 @@ sap.ui.define([
 		if (oData.test(oControlOrAControls)) {
 			// TODO: 一旦、非配列パターンのみを実装
 			if (this._isCellInSapUiTableTableBindedJsonModel(oControl)) {
-				this._clearErrorCellInSapUiTableTable(oControl, oData.messageText, oData.validateFunctionId);
+				this._clearErrorCellInSapUiTableTable(oControl, oData.validateFunctionId);
 			} else {
 				oData.controls.forEach(oCtl => {
 					// 例えば、日付の大小関係チェックのように、自身以外のコントロールの値が修正されてフォーカスアウトしたことで、自身も正常となるので対象コントロール達のエラーは解除する。
