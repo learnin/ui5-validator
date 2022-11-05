@@ -359,8 +359,12 @@ sap.ui.define([
 		if (Array.isArray(oTargetControlOrAControls) && mParameter && mParameter.controlsMoreAttachValidator) {
 			throw new SyntaxError();
 		}
+		if (mParameter && !mParameter.isAttachValidator && mParameter.isAttachFocusoutValidationImmediately) {
+			throw new SyntaxError();
+		}
 
 		const oDefaultParam = {
+			isAttachValidator: true,
 			isAttachFocusoutValidationImmediately: true,
 			isGroupedTargetControls: false,
 			controlsMoreAttachValidator: null
@@ -464,6 +468,7 @@ sap.ui.define([
 				oValidateFunction.isGroupedTargetControls = oParam.isGroupedTargetControls;
 				oValidateFunction.controlsMoreAttachValidator = oParam.controlsMoreAttachValidator;
 				oValidateFunction.isOriginalFunctionIdUndefined = isOriginalFunctionIdUndefined;
+				oValidateFunction.isAttachValidator = oParam.isAttachValidator;
 			} else {
 				aValidateFunctions.push({
 					validateFunctionId: sValidateFunctionId,
@@ -473,7 +478,8 @@ sap.ui.define([
 					validateFunction: fnValidateFunction,
 					isGroupedTargetControls: oParam.isGroupedTargetControls,
 					controlsMoreAttachValidator: oParam.controlsMoreAttachValidator,
-					isOriginalFunctionIdUndefined: isOriginalFunctionIdUndefined
+					isOriginalFunctionIdUndefined: isOriginalFunctionIdUndefined,
+					isAttachValidator: oParam.isAttachValidator
 				});
 			}
 		} else {
@@ -485,11 +491,12 @@ sap.ui.define([
 				validateFunction: fnValidateFunction,
 				isGroupedTargetControls: oParam.isGroupedTargetControls,
 				controlsMoreAttachValidator: oParam.controlsMoreAttachValidator,
-				isOriginalFunctionIdUndefined: isOriginalFunctionIdUndefined
+				isOriginalFunctionIdUndefined: isOriginalFunctionIdUndefined,
+				isAttachValidator: oParam.isAttachValidator
 			}]);
 		}
 		
-		if (oParam.isAttachFocusoutValidationImmediately) {
+		if (oParam.isAttachValidator && oParam.isAttachFocusoutValidationImmediately) {
 			if (isTargetEqualsSapUiTableColumn) {
 				// バリデーション対象が sap.ui.table.Column の場合
 				const oColumn = oTargetControlOrAControls;
@@ -630,13 +637,43 @@ sap.ui.define([
 		}
 		if (this._mRegisteredValidator.has(oTargetRootControl.getId())) {
 			this._mRegisteredValidator.get(oTargetRootControl.getId()).forEach(oValidateFunction => {
-				this._attachRegisteredValidator(
-					oValidateFunction.targetControlOrControls,
-					oValidateFunction.testFunction,
-					oValidateFunction.messageTextOrMessageTexts,
-					oValidateFunction.validateFunctionId,
-					oValidateFunction.isGroupedTargetControls,
-					oValidateFunction.controlsMoreAttachValidator);
+				if (oValidateFunction.isAttachValidator) {
+					if (oTargetRootControl instanceof sapUiTableTable && oTargetRootControl.getBinding("rows") && oTargetRootControl.getBinding("rows").getModel() instanceof JSONModel) {
+						const oTable = oTargetRootControl;
+						const oColumn = oValidateFunction.targetControlOrControls;
+						const iVisibledColIndex = oTable.getColumns().filter(oCol => oCol.getVisible()).findIndex(oCol => oCol.getId() === oColumn.getId());
+						if (iVisibledColIndex > 0) {
+							const aTargetCells = oTable.getRows().map(oRow => oRow.getCells()[iVisibledColIndex]);
+							if (oValidateFunction.isGroupedTargetControls) {
+								this._attachRegisteredValidator(
+									aTargetCells,
+									oValidateFunction.testFunction,
+									oValidateFunction.messageTextOrMessageTexts,
+									oValidateFunction.validateFunctionId,
+									oValidateFunction.isGroupedTargetControls,
+									oValidateFunction.controlsMoreAttachValidator);
+							} else {
+								aTargetCells.forEach(oTargetCell => {
+									this._attachRegisteredValidator(
+										oTargetCell,
+										oValidateFunction.testFunction,
+										oValidateFunction.messageTextOrMessageTexts,
+										oValidateFunction.validateFunctionId,
+										oValidateFunction.isGroupedTargetControls,
+										oValidateFunction.controlsMoreAttachValidator);
+								});
+							}
+						}
+					} else {
+						this._attachRegisteredValidator(
+							oValidateFunction.targetControlOrControls,
+							oValidateFunction.testFunction,
+							oValidateFunction.messageTextOrMessageTexts,
+							oValidateFunction.validateFunctionId,
+							oValidateFunction.isGroupedTargetControls,
+							oValidateFunction.controlsMoreAttachValidator);
+					}
+				}
 			});
 		}
 		// sap.ui.table.Table の場合は普通にaggregationを再帰的に処理すると存在しない行も処理対象になってしまうため、
@@ -1422,9 +1459,9 @@ sap.ui.define([
 			oMessageManager.removeMessages(oMessage);
 
 			if (Array.isArray(oControlOrAControls)) {
-				oControlOrAControls.forEach(oCtl => this._clearValueStateIfNoErrors(oCtl, sRowBindingPath));
+				oControlOrAControls.forEach(oCtl => this._clearValueStateIfNoErrors(oCtl, this._resolveMessageTarget(oCtl)));
 			} else {
-				this._clearValueStateIfNoErrors(oControl, sRowBindingPath);
+				this._clearValueStateIfNoErrors(oControl, this._resolveMessageTarget(oControl));
 			}
 		}
 	};
@@ -1462,7 +1499,7 @@ sap.ui.define([
 		const oMessage = oMessageModel.getProperty("/").find(oMsg =>
 			BaseObject.isA(oMsg, sValidatorMessageName) &&
 			oMsg.getValidationErrorControlIds().includes(sControlId) &&
-			oMsg.getValidateFunctionId() === sValidateFunctionId);
+			oMsg.getValidateFunctionId() === (sValidateFunctionId || ""));
 		if (oMessage) {
 			oMessageManager.removeMessages(oMessage);
 		}
@@ -1474,27 +1511,42 @@ sap.ui.define([
 	 * 該当のコントロールにエラーメッセージがまだあるか確認し、ない場合にのみエラーステートをクリアする。
 	 * 
 	 * @param {sap.ui.core.Control} oControl 処理対象のコントロール
-	 * @param {string|string[]} sTargetOrATargetsOrsFullTarget セットされているメッセージの中から対象のコントロールのメッセージを判別するための Message の target/targets or fullTarget プロパティ値
+	 * @param {string|string[]} sTargetOrATargets セットされているメッセージの中から対象のコントロールのメッセージを判別するための Message の target/targets プロパティ値
 	 */
-	Validator.prototype._clearValueStateIfNoErrors = function(oControl, sTargetOrATargetsOrsFullTarget) {
+	Validator.prototype._clearValueStateIfNoErrors = function(oControl, sTargetOrATargets) {
 		if (!oControl.setValueState) {
 			return;
 		}
 		let aTargets;
-		if (!Array.isArray(sTargetOrATargetsOrsFullTarget)) {
-			aTargets = [sTargetOrATargetsOrsFullTarget];
-		} else if (sTargetOrATargetsOrsFullTarget.length === 0) {
+		if (!Array.isArray(sTargetOrATargets)) {
+			aTargets = [sTargetOrATargets];
+		} else if (sTargetOrATargets.length === 0) {
 			return;
 		} else {
-			aTargets = sTargetOrATargetsOrsFullTarget;
+			aTargets = sTargetOrATargets;
 		}
-
 		const aMessages = sap.ui.getCore().getMessageManager().getMessageModel().getProperty("/");
-		aTargets.forEach(sTarget => {
-			if (!aMessages.find(oMessage => (oMessage.getTargets && oMessage.getTargets().includes(sTarget)) || oMessage.getTarget() === sTarget || oMessage.fullTarget === sTarget)) {
-				this._setValueState(oControl, ValueState.None, null);
+		if (aTargets.every(sTarget => aMessages.some(oMessage => (oMessage.getTargets && oMessage.getTargets().includes(sTarget)) || oMessage.getTarget() === sTarget))) {
+			return;
+		}
+		if (this._isCellInSapUiTableTableBindedJsonModel(oControl)) {
+			const oRow = oControl.getParent();
+			const oTable = oRow.getParent();
+			const sTableId = oTable.getId();
+			let aInvalidRowCols = this._invalidTableRowCols.get(sTableId);
+			if (!aInvalidRowCols) {
+				return;
 			}
-		});
+			const iVisibledColIndex = oRow.indexOfCell(oControl);
+			const oColumn = oTable.getColumns().filter(oColumn => oColumn.getVisible())[iVisibledColIndex];
+			const sColId = oColumn.getId();
+			const sTableModelName = oTable.getBindingInfo("rows").model;
+			const sRowBindingPath = oRow.getCells()[iVisibledColIndex].getBindingContext(sTableModelName).getPath();
+			if (aInvalidRowCols.some(oInvalidRowCol => oInvalidRowCol.rowPath === sRowBindingPath && oInvalidRowCol.columnId === sColId)) {
+				return;
+			}
+		}
+		this._setValueState(oControl, ValueState.None, null);
 	};
 
 	/**
