@@ -185,7 +185,7 @@ sap.ui.define([
 				[
 					this.getResourceText("message.dateBeforeDate", this.getResourceText("label.startDate"), this.getResourceText("label.endDate")),
 					this.getResourceText("message.dateAfterDate", this.getResourceText("label.endDate"), this.getResourceText("label.startDate"))
-				],	// "From date と To dare の大小関係を正しく入力してください" も可能
+				],	// "From date と To date の大小関係を正しく入力してください" も可能
 				[oView.byId("fromDate"), oView.byId("toDate")],
 				oView.byId("toDate")
 			);
@@ -227,7 +227,7 @@ sap.ui.define([
 				oView.byId("gridTable"),		// sap.ui.table.Table 内のコントロールをバリデーションする場合、ここは sap.ui.table.Table を渡す
 				{
 					isGroupedTargetControls: true,
-					// isAttachValidator: false	// TODO
+					isAttachFocusoutValidationImmediately: false
 				}
 			);
 
