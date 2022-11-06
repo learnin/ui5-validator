@@ -15,7 +15,7 @@
 		"rimraf": "3.0.2"
 	},
 	"dependencies": {
-		"@learnin/ui5-validator": "0.1.10"
+		"@learnin/ui5-validator": "0.2.0"
 	},
 	"ui5": {
 		"dependencies": [
