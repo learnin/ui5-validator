@@ -211,7 +211,7 @@ sap.ui.define([
 					}
 					return !sValue || sValue.length <= 2;
 				},
-				"Please enter up to 2 letters.",
+				this.getResourceText("message.enterUpToLetters", "2"),
 				oView.byId("col3InGridTable"),	// sap.ui.table.Table 内のコントロールをバリデーションする場合、ここは sap.ui.table.Column を渡す
 				oView.byId("gridTable"),	// sap.ui.table.Table 内のコントロールをバリデーションする場合、ここは sap.ui.table.Table を渡す
 			);
@@ -227,7 +227,7 @@ sap.ui.define([
 					}
 					return aValues.some(sValue => sValue === "0");
 				},
-				"いずれかの行に 0 を入力してください。",
+				this.getResourceText("message.enterEitherLine", "0"),
 				oView.byId("col3InGridTable"),	// sap.ui.table.Table 内のコントロールをバリデーションする場合、ここは sap.ui.table.Column を渡す
 				oView.byId("gridTable"),		// sap.ui.table.Table 内のコントロールをバリデーションする場合、ここは sap.ui.table.Table を渡す
 				{
@@ -248,7 +248,7 @@ sap.ui.define([
 					}
 					return !(aValues[0] === "0" && aValues[1].length > 1);
 				},
-				"1列目が0の場合は2列目は1桁の値を入力してください",
+				this.getResourceText("message.col1AndCol3InGridTableValidationError", "Not required Input string label in GridTable", "0", "Required Input Label in GridTable", "1"),
 				[oView.byId("col1InGridTable"), oView.byId("col3InGridTable")],	// sap.ui.table.Table 内のコントロールをバリデーションする場合、ここは sap.ui.table.Column を渡す
 				oView.byId("gridTable")		// sap.ui.table.Table 内のコントロールをバリデーションする場合、ここは sap.ui.table.Table を渡す
 			);
