@@ -201,6 +201,9 @@ sap.ui.define([
 
 			// テーブル内の単項目バリデーション
 			this._validator.registerValidator(
+				// この引数の関数は、oInputOrValue には
+				// フォーカスアウト時は フォーカスアウトした行の　col3InGridTable が渡されて、1度だけ呼び出され、
+				// validate メソッド実行時は n行目のcol3InGridTable列の値 が渡されて、 n = 1 から テーブルにバインドされているデータの行数分まで 繰り返し呼び出される。
 				(oInputOrValue) => {
 					let sValue = oInputOrValue;
 					if (oInputOrValue instanceof Input) {
@@ -213,8 +216,10 @@ sap.ui.define([
 				oView.byId("gridTable"),	// sap.ui.table.Table 内のコントロールをバリデーションする場合、ここは sap.ui.table.Table を渡す
 			);
 			
-			// テーブル内の同一項目、行違い項目の相関バリデーション
+			// テーブル内の同一項目内の相関バリデーション
 			this._validator.registerValidator(
+				// この引数の関数は、aInputsOrValues には
+				// フォーカスアウト時も validate メソッド実行時も [1行目のcol3InGridTable列の値, 2行目のcol3InGridTable列の値, ... テーブルにバインドされているデータの行末目のcol3InGridTable列の値] が渡されて、1度だけ呼び出される。
 				(aInputsOrValues) => {
 					let aValues = aInputsOrValues;
 					if (aInputsOrValues[0] instanceof Input) {
@@ -231,15 +236,22 @@ sap.ui.define([
 				}
 			);
 
-			// テーブル内の同一行、項目相関バリデーション
-			// this._validator.registerValidator(
-			// 	(sValue) => {
-			// 		return !sValue || sValue.length <= 2;
-			// 	},
-			// 	"2桁以内で入力してください",
-			// 	[oView.byId("col1InGridTable"), oView.byId("col3InGridTable")],
-			// 	oView.byId("gridTable"),		// sap.ui.table.Table 内のコントロールをバリデーションする場合、ここは sap.ui.table.Table を渡す
-			// );
+			// テーブル内の同一行内の項目相関バリデーション
+			this._validator.registerValidator(
+				// この引数の関数は、aInputsOrValues には
+				// フォーカスアウト時は フォーカスアウトした行の　[col1InGridTable, col3InGridTable] が渡されて、1度だけ呼び出され、
+				// validate メソッド実行時は [n行目のcol1InGridTable列の値, n行目のcol3InGridTable列の値] が渡されて、 n = 1 から テーブルにバインドされているデータの行数分まで 繰り返し呼び出される。
+				(aInputsOrValues) => {
+					let aValues = aInputsOrValues;
+					if (aInputsOrValues[0] instanceof Input) {
+						aValues = aInputsOrValues.map(oInput => oInput.getValue());
+					}
+					return !(aValues[0] === "0" && aValues[1].length > 1);
+				},
+				"1列目が0の場合は2列目は1桁の値を入力してください",
+				[oView.byId("col1InGridTable"), oView.byId("col3InGridTable")],	// sap.ui.table.Table 内のコントロールをバリデーションする場合、ここは sap.ui.table.Column を渡す
+				oView.byId("gridTable")		// sap.ui.table.Table 内のコントロールをバリデーションする場合、ここは sap.ui.table.Table を渡す
+			);
 		},
 		onShowErrors: function () {
 			this.showValidationErrorMessageDialog();
