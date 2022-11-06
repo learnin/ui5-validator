@@ -806,38 +806,8 @@ sap.ui.define([
 			// さらに、Table に rowsUpdated イベントハンドラをアタッチして、スクロール時には this._mInvalidTableRowCols の情報からValueState, ValueTextの最新化を行う。
 			// MessageのｆullTargetの値は、ユーザ側で MessageDialog 等を表示する際に、参照することでメッセージクリック時にテーブルをスクロールさせてフォーカスを当てることが可能となる。
 			// (e.g. example.webapp.controller.BaseController#showValidationErrorMessageDialog)
+			isValid = this._validateRequiredInSapUiTableTable(oTargetRootControl);
 
-			// TODO: _validateRequired のようにメソッドに切り出す
-			const oTableBinding = oTargetRootControl.getBinding("rows");
-			const sTableBindingPath = oTableBinding.getPath();
-			const aModelDataRecords = oTableBinding.getModel().getProperty(sTableBindingPath);
-			const aRows = oTargetRootControl.getRows();
-			if (aModelDataRecords.length > 0 && aRows.length > 0) {
-				const aRequiredCells = aRows[0].getCells().filter(oCell => ((oCell.getEnabled && oCell.getEnabled()) || !oCell.getEnabled) && LabelEnablement.isRequired(oCell));
-				if (aRequiredCells.length > 0) {
-					const aRequiredPropertyNames = aRequiredCells.map(requiredCell => this._resolveBindingPropertyName(requiredCell));
-					for (let i = 0; i < aModelDataRecords.length; i++) {
-						for (let j = 0; j < aRequiredCells.length; j++) {
-							if (!aRequiredPropertyNames[j]) {
-								continue;
-							}
-							const oValue = aModelDataRecords[i][aRequiredCells[j].getBindingPath(aRequiredPropertyNames[j])];
-							if ((aRequiredPropertyNames[j] === "selectedIndex" && oValue < 0) || (aRequiredPropertyNames[j] !== "selectedIndex" && (oValue === "" || oValue === null || oValue === undefined))) {
-								isValid = false;
-								const sMessageText = this._getRequiredErrorMessageTextByControl(aRequiredCells[j]);
-								const iVisibledColIndex = aRows[0].indexOfCell(aRequiredCells[j]);
-								// oRow.indexOfCell では visible=false のカラムはスキップされているのでインデックス値を合わせるためフィルタする
-								const oColumn = oTargetRootControl.getColumns().filter(oCol => oCol.getVisible())[iVisibledColIndex];
-								this._addMessageAndInvalidTableRowCol([oColumn], sTableBindingPath, [i], sMessageText, [this._getLabelText(aRequiredCells[j])], "");
-							}
-						}
-					}
-				}
-			}
-			if (!isValid) {
-				this._attachTableRowsUpdater(oTargetRootControl);
-			}
-			oTargetRootControl.fireRowsUpdated();
 		// sap.ui.table.Table の場合は普通にaggregationを再帰的に処理すると存在しない行も処理対象になってしまうため、
 		// Table.getBinding().getLength() してその行までの getRows() の getCells() のコントロールを検証する。
 		} else if (oTargetRootControl instanceof sapUiTableTable && oTargetRootControl.getBinding("rows")) {
@@ -886,11 +856,12 @@ sap.ui.define([
 		}
 		return isValid;
 	};
-  
+
 	/**
 	 * sap.ui.table.Table#indexOfColumn や #getColumns で使う非表示列を含む列インデックス値から
 	 * sap.ui.table.Row#indexOfCell や #getCells で使う非表示列を除いた列インデックス値へ変換する
 	 * 
+	 * @private
 	 * @param {sap.ui.table.Table} oSapUiTableTable テーブルコントロール
 	 * @param {string[]|string} aColumnIndiciesOrIColumnIndex 非表示列を含む列インデックス値
 	 * @returns {string[]|string} 非表示列を除いた列インデックス値
@@ -928,6 +899,7 @@ sap.ui.define([
 	 * sap.ui.table.Table#rowsUpdated イベント用のハンドラ
 	 * テーブルの画面に表示されている行について、ValueState, ValueText を最新化する。
 	 * 
+	 * @private
 	 * @param {sap.ui.base.Event} oEvent イベント
 	 */
 	Validator.prototype._renewValueStateInTable = function(oEvent) {
@@ -974,6 +946,7 @@ sap.ui.define([
 	 * これらのイベントが発生した場合は this._mInvalidTableRowCols に保持しているバリデーションエラーの行インデックスとテーブルのデータの行が合わなくなってしまうため
 	 * this._mInvalidTableRowCols に保持しているエラー行・列情報をクリアする。
 	 * 
+	 * @private
 	 * @param {sap.ui.base.Event} oEvent イベント
 	 */
 	Validator.prototype._clearInValidRowColsInTable = function(oEvent) {
@@ -1267,7 +1240,9 @@ sap.ui.define([
 	};
 
 	/**
-	 * {@link #registerValidator registerValidator} や {@link #registerRequiredValidator registerRequiredValidator} で登録されたフォーカスアウトバリデータ関数
+	 * {@link #registerValidator registerValidator} や {@link #registerRequiredValidator registerRequiredValidator} で登録されたフォーカスアウトバリデータ関数。
+	 * 1つのコントロールに複数のバリデータを登録した場合でもコントロールにアタッチするイベントハンドラ関数は常にこの _registeredvalidator のみとなり、
+	 * 引数の oData がバリデータ毎に異なる値になることでバリデータの内容に応じたバリデーションを行う。
 	 * 
 	 * @private
 	 * @param {sap.ui.base.Event} oEvent イベント
@@ -1283,7 +1258,6 @@ sap.ui.define([
 		const oControlOrAControls = oData.controls.length > 1 ? oData.controls : oData.controls[0];
 		let isValid;
 
-		// TODO: _validate と共通化できるところは切り出す
 		if (this._isCellInSapUiTableTableBindedJsonModel(oControl) && oData.isGroupedTargetControls) {
 			// バリデーション対象がテーブル内のセルで isGroupedTargetControls = true の場合は、列全体に対してのバリデーションとなるが、
 			// 列のコントロールをすべて渡しても、スクロールで見えていない行の値が取得できないので、テーブルにバインドされている該当列の値をすべて取得してバリデータ関数に渡す。
@@ -1440,6 +1414,7 @@ sap.ui.define([
 	/**
 	 * 引数のコントロールの必須チェックを行う。
 	 *
+	 * @private
 	 * @param {sap.ui.core.Control} oControl 検証対象のコントロール
 	 * @returns {boolean}　true: valid、false: invalid
 	 */
@@ -1451,6 +1426,48 @@ sap.ui.define([
 		this._addMessage(oControl, sMessageText);
 		this._setValueState(oControl, ValueState.Error, sMessageText);
 		return false;
+	};
+
+	/**
+	 * sap.ui.table.Table の required な列について、テーブルにバインドされているデータ全行に対して必須チェックを行う。
+	 * 
+	 * @private
+	 * @param {sap.ui.table.Table} oTable 検証対象のテーブル
+	 * @returns true: バリデーションOK, false: バリデーションNG
+	 */
+	Validator.prototype._validateRequiredInSapUiTableTable = function(oTable) {
+		let isValid = true;
+		const oTableBinding = oTable.getBinding("rows");
+		const sTableBindingPath = oTableBinding.getPath();
+		const aModelDataRecords = oTableBinding.getModel().getProperty(sTableBindingPath);
+		const aRows = oTable.getRows();
+		if (aModelDataRecords.length > 0 && aRows.length > 0) {
+			const aRequiredCells = aRows[0].getCells().filter(oCell => ((oCell.getEnabled && oCell.getEnabled()) || !oCell.getEnabled) && LabelEnablement.isRequired(oCell));
+			if (aRequiredCells.length > 0) {
+				const aRequiredPropertyNames = aRequiredCells.map(requiredCell => this._resolveBindingPropertyName(requiredCell));
+				for (let i = 0; i < aModelDataRecords.length; i++) {
+					for (let j = 0; j < aRequiredCells.length; j++) {
+						if (!aRequiredPropertyNames[j]) {
+							continue;
+						}
+						const oValue = aModelDataRecords[i][aRequiredCells[j].getBindingPath(aRequiredPropertyNames[j])];
+						if ((aRequiredPropertyNames[j] === "selectedIndex" && oValue < 0) || (aRequiredPropertyNames[j] !== "selectedIndex" && (oValue === "" || oValue === null || oValue === undefined))) {
+							isValid = false;
+							const sMessageText = this._getRequiredErrorMessageTextByControl(aRequiredCells[j]);
+							const iVisibledColIndex = aRows[0].indexOfCell(aRequiredCells[j]);
+							// oRow.indexOfCell では visible=false のカラムはスキップされているのでインデックス値を合わせるためフィルタする
+							const oColumn = oTable.getColumns().filter(oCol => oCol.getVisible())[iVisibledColIndex];
+							this._addMessageAndInvalidTableRowCol([oColumn], sTableBindingPath, [i], sMessageText, [this._getLabelText(aRequiredCells[j])], "");
+						}
+					}
+				}
+			}
+		}
+		if (!isValid) {
+			this._attachTableRowsUpdater(oTable);
+		}
+		oTable.fireRowsUpdated();
+		return isValid;
 	};
 
 	/**
@@ -1480,6 +1497,7 @@ sap.ui.define([
 	 * 不正な値を入力された場合、標準のバリデーションによりエラーステートがセットされている可能性があるため、
 	 * 該当のコントロールにエラーメッセージがまだあるか確認し、ない場合にのみエラーステートをクリアする。
 	 * 
+	 * @private
 	 * @param {sap.ui.core.Control} oControl 処理対象のコントロール
 	 * @param {string|string[]} sTargetOrATargets セットされているメッセージの中から対象のコントロールのメッセージを判別するための Message の target/targets プロパティ値
 	 */
@@ -1587,6 +1605,13 @@ sap.ui.define([
 		return aTargets[0];
 	};
 
+	/**
+	 * バインドされているプロパティ名を返します。
+	 * 
+	 * @private
+	 * @param {sap.ui.core.Control} oControl 
+	 * @returns バインドされているプロパティ名
+	 */
 	Validator.prototype._resolveBindingPropertyName = function(oControl) {
 		if (oControl.getBinding("value") || oControl.getValue) {
 			return "value";
