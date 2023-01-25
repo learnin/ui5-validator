@@ -1613,9 +1613,6 @@ sap.ui.define([
 	 * @returns バインドされているプロパティ名
 	 */
 	Validator.prototype._resolveBindingPropertyName = function(oControl) {
-		if (oControl.getBinding("value") || oControl.getValue) {
-			return "value";
-		}
 		if (oControl.getBinding("selectedKey") || oControl.getSelectedKey) {
 			return "selectedKey";
 		}
@@ -1630,6 +1627,10 @@ sap.ui.define([
 		}
 		if (oControl.getBinding("selectedDates") || oControl.getSelectedDates) {
 			return "selectedDates";
+		}
+		// 例えば、 sap.m.ComboBox のように selectedKey を使うものでも sap.m.InputBase を継承しているので value をもっているので、 value は最後に判定する。
+		if (oControl.getBinding("value") || oControl.getValue) {
+			return "value";
 		}
 		return undefined;
 	}
