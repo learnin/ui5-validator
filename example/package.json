@@ -7,7 +7,8 @@
 	"license": "Apache-2.0",
 	"scripts": {
 		"start": "cpx \"node_modules/@learnin/ui5-validator/dist/resources/**/*\" webapp/libs -Cv && ui5 serve -o index.html",
-		"build": "rimraf dist && ui5 build -a --include-task=generateManifestBundle generateCachebusterInfo"
+		"build": "rimraf dist && ui5 build -a --include-task=generateManifestBundle generateCachebusterInfo",
+		"it": "cpx \"node_modules/@learnin/ui5-validator/dist/resources/**/*\" webapp/libs -Cv && ui5 serve -o test/integration/opaTests.qunit.html"
 	},
 	"devDependencies": {
 		"@ui5/cli": "^2.10.3",
