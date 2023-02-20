@@ -8,7 +8,7 @@ sap.ui.define([
 	ValueState) {
 	"use strict";
 
-	const sViewName = "ValidatorExample"
+	const sViewName = "ValidatorExample";
 
 	Opa5.createPageObjects({
 		onTheValidatorExamplePage: {
