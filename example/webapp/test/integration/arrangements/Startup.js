@@ -20,8 +20,6 @@ sap.ui.define([
 
 			this._clearSharedData();
 
-			oOptions.delay = oOptions.delay || 1;
-
 			this.iStartMyUIComponent({
 				componentConfig: {
 					name: "learnin.ui5.validator.example",

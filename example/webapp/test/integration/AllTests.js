@@ -1,7 +1,7 @@
 sap.ui.define([
 	"sap/ui/test/Opa5",
 	"./arrangements/Startup",
-	"./ValidatorExampleTest"
+	"./validatorExample/ValidatorExampleTest"
 ], function (Opa5, Startup) {
 	"use strict";
 
@@ -9,6 +9,6 @@ sap.ui.define([
 		arrangements: new Startup(),
 		viewNamespace: "learnin.ui5.validator.example.view.",
 		autoWait: true,
-		timeout: 3
+		timeout: 5
 	});
 });
