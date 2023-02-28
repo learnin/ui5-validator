@@ -1579,22 +1579,22 @@ sap.ui.define([
 			aControls.push(oControlOrAControls);
 		}
 		const aTargets = aControls.map(oControl => {
-			if (oControl.getBinding("value") || oControl.getValue) {
+			if (oControl.getBinding("value")) {
 				return oControl.getId() + "/value";
 			}
-			if (oControl.getBinding("selectedKey") || oControl.getSelectedKey) {
+			if (oControl.getBinding("selectedKey")) {
 				return oControl.getId() + "/selectedKey";
 			}
-			if (oControl.getBinding("selectedKeys") || oControl.getSelectedKeys) {
+			if (oControl.getBinding("selectedKeys")) {
 				return oControl.getId() + "/selectedKeys";
 			}
-			if (oControl.getBinding("selected") || oControl.getSelected) {
+			if (oControl.getBinding("selected")) {
 				return oControl.getId() + "/selected";
 			}
-			if (oControl.getBinding("selectedIndex") || oControl.getSelectedIndex) {
+			if (oControl.getBinding("selectedIndex")) {
 				return oControl.getId() + "/selectedIndex";
 			}
-			if (oControl.getBinding("selectedDates") || oControl.getSelectedDates) {
+			if (oControl.getBinding("selectedDates")) {
 				return oControl.getId() + "/selectedDates";
 			}
 			return undefined;
@@ -1613,24 +1613,23 @@ sap.ui.define([
 	 * @returns バインドされているプロパティ名
 	 */
 	Validator.prototype._resolveBindingPropertyName = function(oControl) {
-		if (oControl.getBinding("selectedKey") || oControl.getSelectedKey) {
+		if (oControl.getBinding("value")) {
+			return "value";
+		}
+		if (oControl.getBinding("selectedKey")) {
 			return "selectedKey";
 		}
-		if (oControl.getBinding("selectedKeys") || oControl.getSelectedKeys) {
+		if (oControl.getBinding("selectedKeys")) {
 			return "selectedKeys";
 		}
-		if (oControl.getBinding("selected") || oControl.getSelected) {
+		if (oControl.getBinding("selected")) {
 			return "selected";
 		}
-		if (oControl.getBinding("selectedIndex") || oControl.getSelectedIndex) {
+		if (oControl.getBinding("selectedIndex")) {
 			return "selectedIndex";
 		}
-		if (oControl.getBinding("selectedDates") || oControl.getSelectedDates) {
+		if (oControl.getBinding("selectedDates")) {
 			return "selectedDates";
-		}
-		// 例えば、 sap.m.ComboBox のように selectedKey を使うものでも sap.m.InputBase を継承しているので value をもっているので、 value は最後に判定する。
-		if (oControl.getBinding("value") || oControl.getValue) {
-			return "value";
 		}
 		return undefined;
 	}
