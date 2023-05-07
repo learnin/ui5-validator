@@ -18,10 +18,22 @@ import Column from "sap/ui/table/Column";
 import Row from "sap/ui/table/Row";
 import Table from "sap/ui/table/Table";
 import ListBinding from "sap/ui/model/ListBinding";
+import ManagedObject from "sap/ui/base/ManagedObject";
+import ResourceBundle from "sap/base/i18n/ResourceBundle";
 
 // ui5-tooling-transpile が `import { default as sapMTable } from "sap/m/Table";` のようなデフォルトエクスポートのインポートへの別名付けの変換に対応していないため
 // デフォルトエクスポートクラス名が重複するものは別モジュールでインポートして対応している。
 import SapMTableUtil from "./SapMTableUtil";
+
+// 検証対象のコントロールもしくはそれを含むコンテナ
+type ValidateTargetControlOrContainer = Control | FormContainer | FormElement| IconTabFilter;
+
+type OptionParameterOfRegisterValidator = {
+	isAttachValidator: boolean,
+	isAttachFocusoutValidationImmediately: boolean,
+	isGroupedTargetControls: boolean,
+	controlsMoreAttachValidator: Control | Control[]
+};
 
 /**
  * スクロールイベントハンドラ等、頻繁に実行されるイベントを間引くためのラッパー
@@ -121,7 +133,7 @@ export default class Validator extends BaseObject {
 	 * コンストラクタのオプションパラメータ
 	 * 
 	 * @typedef {Object} Validator~Parameter
-	 * @property {sap.base.i18n.ResourceBundle} resourceBundle i18n リソースバンドルクラス
+	 * @property {ResourceBundle} resourceBundle i18n リソースバンドルクラス
 	 * @property {string|string[]} targetAggregations バリデーション対象として追加する、コントロールの aggregation 名
 	 * @property {boolean} useFocusoutValidation validate メソッド実行時に isRequired が true のコントロールおよび、registerValidator, registerRequiredValidator の対象コントロールに
 	 * 		フォーカスアウト時のバリデーション関数を attach するか。
@@ -136,7 +148,11 @@ export default class Validator extends BaseObject {
 	 * @public
 	 * @param {Validator~Parameter} [mParameter] パラメータ
 	 */
-	constructor(mParameter) {
+	constructor(mParameter?: {
+		resourceBundle: ResourceBundle,
+		targetAggregations: string | string[],
+		useFocusoutValidation: boolean
+	}) {
 		super();
 
 		// {@link #registerValidator registerValidator} {@link #registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数情報オブジェクト配列を保持するマップ。
@@ -181,10 +197,10 @@ export default class Validator extends BaseObject {
 	 * 引数のオブジェクトもしくはその配下のコントロールのバリデーションを行う。
 	 *
 	 * @public
-	 * @param {sap.ui.core.Control|sap.ui.layout.form.FormContainer|sap.ui.layout.form.FormElement|sap.m.IconTabFilter} oTargetRootControl 検証対象のコントロールもしくはそれを含むコンテナ
+	 * @param {ValidateTargetControlOrContainer} oTargetRootControl 検証対象のコントロールもしくはそれを含むコンテナ
 	 * @returns {boolean} true: valid, false: invalid
 	 */
-	validate(oTargetRootControl) {
+	validate(oTargetRootControl: ValidateTargetControlOrContainer): boolean {
 		if (this._useFocusoutValidation) {
 			this._attachValidator(oTargetRootControl);
 		}
@@ -197,9 +213,9 @@ export default class Validator extends BaseObject {
 	 * その結果、該当コントロールにメッセージがなくなった場合は、{@link sap.ui.core.ValueState ValueState} もクリアする。
 	 *
 	 * @public
-	 * @param {sap.ui.core.Control|sap.ui.layout.form.FormContainer|sap.ui.layout.form.FormElement|sap.m.IconTabFilter} oTargetRootControl 検証対象のコントロールもしくはそれを含むコンテナ
+	 * @param {ValidateTargetControlOrContainer} oTargetRootControl 検証対象のコントロールもしくはそれを含むコンテナ
 	 */
-	removeErrors(oTargetRootControl) {
+	removeErrors(oTargetRootControl: ValidateTargetControlOrContainer): void {
 		if (!oTargetRootControl) {
 			throw new SyntaxError();
 		}
@@ -254,9 +270,9 @@ export default class Validator extends BaseObject {
 	 * 引数のオブジェクトもしくはその配下のコントロールについて、本クラスにより attach された関数を detach する。
 	 * 
 	 * @public
-	 * @param {sap.ui.core.Control|sap.ui.layout.form.FormContainer|sap.ui.layout.form.FormElement|sap.m.IconTabFilter} oTargetRootControl 対象のコントロールもしくはそれを含むコンテナ
+	 * @param {ValidateTargetControlOrContainer} oTargetRootControl 対象のコントロールもしくはそれを含むコンテナ
 	 */
-	removeAttachedValidators(oTargetRootControl) {
+	removeAttachedValidators(oTargetRootControl: ValidateTargetControlOrContainer): void {
 		if (!oTargetRootControl) {
 			throw new SyntaxError();
 		}
@@ -318,18 +334,43 @@ export default class Validator extends BaseObject {
 	// oTargetControlOrAControls が配列で sMessageTextOrAMessageTexts も配列で要素数が同じはOK
 	// oTargetControlOrAControls が配列で sMessageTextOrAMessageTexts がObjectもOK
 	// oTargetControlOrAControls がObjectで sMessageTextOrAMessageTexts もObjectもOK
-	registerValidator(sValidateFunctionId, fnTest, sMessageTextOrAMessageTexts, oTargetControlOrAControls, oControlValidateBefore, mParameter) {
-		let isOriginalFunctionIdUndefined = false;
-		if (typeof sValidateFunctionId !== 'string') {
-			// sValidateFunctionId 省略時は ID を自動生成する。
-			mParameter = oControlValidateBefore;
-			oControlValidateBefore = oTargetControlOrAControls;
-			oTargetControlOrAControls = sMessageTextOrAMessageTexts;
-			sMessageTextOrAMessageTexts = fnTest;
-			fnTest = sValidateFunctionId;
-			sValidateFunctionId = uid();
-			isOriginalFunctionIdUndefined = true;
+	registerValidator(sValidateFunctionId: string, fnTest: Function, sMessageTextOrAMessageTexts: string | string[], oTargetControlOrAControls: Control | Control[], oControlValidateBefore: Control, mParameter?: OptionParameterOfRegisterValidator): Validator
+	registerValidator(fnTest: Function, sMessageTextOrAMessageTexts: string | string[], oTargetControlOrAControls: Control | Control[], oControlValidateBefore: Control, mParameter?: OptionParameterOfRegisterValidator): Validator
+	registerValidator(
+		sValidateFunctionIdOrTest: string | Function,
+		fnTestOrMessageTextOrAMessageTexts: Function | string | string[],
+		sMessageTextOrAMessageTextsOrTargetControlOrAControls: string | string[] | Control | Control[],
+		oTargetControlOrAControlsOrControlValidateBefore: Control | Control[],
+		oControlValidateBeforeOrParameter: Control | OptionParameterOfRegisterValidator,
+		mParameter?: OptionParameterOfRegisterValidator): Validator {
+		if (typeof sValidateFunctionIdOrTest === "string") {
+			return this._registerValidator(
+				false,
+				sValidateFunctionIdOrTest,
+				fnTestOrMessageTextOrAMessageTexts as Function,
+				sMessageTextOrAMessageTextsOrTargetControlOrAControls as string | string[],
+				oTargetControlOrAControlsOrControlValidateBefore as Control | Control[],
+				oControlValidateBeforeOrParameter as Control,
+				mParameter);
 		}
+		return this._registerValidator(
+			true,
+			uid(),
+			sValidateFunctionIdOrTest,
+			fnTestOrMessageTextOrAMessageTexts as string | string[],
+			sMessageTextOrAMessageTextsOrTargetControlOrAControls as Control | Control[],
+			oTargetControlOrAControlsOrControlValidateBefore as Control,
+			oControlValidateBeforeOrParameter as OptionParameterOfRegisterValidator);
+	}
+
+	private _registerValidator(
+		isOriginalFunctionIdUndefined: boolean,
+		sValidateFunctionId: string,
+		fnTest: Function,
+		sMessageTextOrAMessageTexts: string | string[],
+		oTargetControlOrAControls: Control | Control[],
+		oControlValidateBefore: Control,
+		mParameter?: OptionParameterOfRegisterValidator): Validator {
 		if (!(
 			(!Array.isArray(oTargetControlOrAControls) && !Array.isArray(sMessageTextOrAMessageTexts)) ||
 			(Array.isArray(oTargetControlOrAControls) && !Array.isArray(sMessageTextOrAMessageTexts)) ||
@@ -510,7 +551,7 @@ export default class Validator extends BaseObject {
 				// バリデーション対象が sap.ui.table.Column の場合
 				if (Array.isArray(oTargetControlOrAControls)) {
 					const aColumns = oTargetControlOrAControls;
-					const oTable = aColumns[0].getParent();
+					const oTable = aColumns[0].getParent() as Table;
 					const sColumnIds = aColumns.map(oColumn => oColumn.getId());
 					const aVisibledColIndices = [];
 					oTable.getColumns().filter(oCol => oCol.getVisible()).forEach((oCol, i) => {
@@ -532,7 +573,7 @@ export default class Validator extends BaseObject {
 					}
 				} else {
 					const oColumn = oTargetControlOrAControls;
-					const oTable = oColumn.getParent();
+					const oTable = oColumn.getParent() as Table;
 					const iVisibledColIndex = oTable.getColumns().filter(oCol => oCol.getVisible()).findIndex(oCol => oCol.getId() === oColumn.getId());
 					if (iVisibledColIndex > 0) {
 						const aTargetCells = oTable.getRows().map(oRow => oRow.getCells()[iVisibledColIndex]);
@@ -582,16 +623,31 @@ export default class Validator extends BaseObject {
 	 * @param {Object} [mParameter] オプションパラメータ
 	 * @returns {Validator} Reference to this in order to allow method chaining
 	 */
-	registerRequiredValidator(sValidateFunctionId, fnTest, oTargetControlOrAControls, oControlValidateBefore, mParameter) {
-		let isOriginalFunctionIdUndefined = false;
-		if (typeof sValidateFunctionId !== 'string') {
-			// sValidateFunctionId 省略時は ID を自動生成する。
-			mParameter = oControlValidateBefore;
-			oControlValidateBefore = oTargetControlOrAControls;
-			oTargetControlOrAControls = fnTest;
-			fnTest = sValidateFunctionId;
-			isOriginalFunctionIdUndefined = true;
+	registerRequiredValidator(sValidateFunctionId: string, fnTest: Function, oTargetControlOrAControls: Control | Control[], oControlValidateBefore: Control, mParameter?: OptionParameterOfRegisterValidator): Validator
+	registerRequiredValidator(fnTest: Function, oTargetControlOrAControls: Control | Control[], oControlValidateBefore: Control, mParameter?: OptionParameterOfRegisterValidator): Validator
+	registerRequiredValidator(
+		sValidateFunctionIdOrTest: string | Function,
+		fnTestOrTargetControlOrAControls: Function | Control | Control[],
+		oTargetControlOrAControlsOrControlValidateBefore: Control | Control[],
+		oControlValidateBeforeOrParameter: Control | OptionParameterOfRegisterValidator,
+		mParameter?: OptionParameterOfRegisterValidator): Validator {
+		if (typeof sValidateFunctionIdOrTest === "string") {
+			return this._registerRequiredValidator(
+				sValidateFunctionIdOrTest,
+				fnTestOrTargetControlOrAControls as Function,
+				oTargetControlOrAControlsOrControlValidateBefore as Control | Control[],
+				oControlValidateBeforeOrParameter as Control,
+				mParameter);
 		}
+		return this._registerRequiredValidator(
+			uid(),
+			sValidateFunctionIdOrTest,
+			fnTestOrTargetControlOrAControls as Control | Control[],
+			oTargetControlOrAControlsOrControlValidateBefore as Control,
+			oControlValidateBeforeOrParameter as OptionParameterOfRegisterValidator);
+	}
+
+	private _registerRequiredValidator(sValidateFunctionId: string, fnTest: Function, oTargetControlOrAControls: Control | Control[], oControlValidateBefore: Control, mParameter?: OptionParameterOfRegisterValidator): Validator {
 		const oDefaultParam = {
 			isAttachFocusoutValidationImmediately: false,
 			// isGroupedTargetControls: true の場合、oTargetControlOrAControls を1つのグループとみなして検証は1回だけ（コントロール数分ではない）で、エラーメッセージも1つだけで、
@@ -614,11 +670,7 @@ export default class Validator extends BaseObject {
 		} else {
 			sMessageTextOrAMessageTexts = this._getRequiredErrorMessageTextByControl(oTargetControlOrAControls);
 		}
-		if (isOriginalFunctionIdUndefined) {
-			this.registerValidator(fnTest, sMessageTextOrAMessageTexts, oTargetControlOrAControls, oControlValidateBefore, oParam, undefined);
-		} else {
-			this.registerValidator(sValidateFunctionId, fnTest, sMessageTextOrAMessageTexts, oTargetControlOrAControls, oControlValidateBefore, oParam);
-		}
+		this.registerValidator(sValidateFunctionId, fnTest, sMessageTextOrAMessageTexts, oTargetControlOrAControls, oControlValidateBefore, oParam);
 		return this;
 	};
 
@@ -630,7 +682,7 @@ export default class Validator extends BaseObject {
 	 * @param {sap.ui.core.Control} oControlValidateBefore コントロール
 	 * @returns {Validator} Reference to this in order to allow method chaining
 	 */
-	unregisterValidator(sValidateFunctionId, oControlValidateBefore) {
+	unregisterValidator(sValidateFunctionId: string, oControlValidateBefore: Control): Validator {
 		const sControlId = oControlValidateBefore.getId();
 		if (!this._mRegisteredValidator.has(sControlId)) {
 			return this;
@@ -650,9 +702,9 @@ export default class Validator extends BaseObject {
 	 * 引数のオブジェクトもしくはその配下のコントロールにバリデータ関数を attach する。
 	 *
 	 * @private
-	 * @param {sap.ui.core.Control|sap.ui.layout.form.FormContainer|sap.ui.layout.form.FormElement|sap.m.IconTabFilter} oTargetRootControl バリデータ関数を attach するコントロールもしくはそれを含むコンテナ
+	 * @param {ValidateTargetControlOrContainer} oTargetRootControl バリデータ関数を attach するコントロールもしくはそれを含むコンテナ
 	 */
-	_attachValidator(oTargetRootControl) {
+	_attachValidator(oTargetRootControl: ValidateTargetControlOrContainer): void {
 		// 非表示のコントロールも後で表示される可能性が想定されるため、処理対象とする
 		if (!(oTargetRootControl instanceof Control ||
 			oTargetRootControl instanceof FormContainer ||
@@ -759,9 +811,18 @@ export default class Validator extends BaseObject {
 				}
 				if (Array.isArray(aControlAggregation)) {
 					for (let j = 0; j < aControlAggregation.length; j++) {
-						this._attachValidator(aControlAggregation[j]);
+						const oControlAggregation = aControlAggregation[j];
+						if (oControlAggregation instanceof Control ||
+							oControlAggregation instanceof FormContainer ||
+							oControlAggregation instanceof FormElement ||
+							oControlAggregation instanceof IconTabFilter) {
+							this._attachValidator(oControlAggregation);
+						}
 					}
-				} else {
+				} else if (aControlAggregation instanceof Control ||
+					aControlAggregation instanceof FormContainer ||
+					aControlAggregation instanceof FormElement ||
+					aControlAggregation instanceof IconTabFilter) {
 					this._attachValidator(aControlAggregation);
 				}
 			}
@@ -772,10 +833,10 @@ export default class Validator extends BaseObject {
 	 * 引数のオブジェクトとその配下のコントロールのバリデーションを行う。
 	 *
 	 * @private
-	 * @param {sap.ui.core.Control|sap.ui.layout.form.FormContainer|sap.ui.layout.form.FormElement|sap.m.IconTabFilter} oTargetRootControl 検証対象のコントロールもしくはそれを含むコンテナ
+	 * @param {ValidateTargetControlOrContainer} oTargetRootControl 検証対象のコントロールもしくはそれを含むコンテナ
 	 * @returns {boolean}　true: valid, false: invalid
 	 */
-	_validate(oTargetRootControl) {
+	_validate(oTargetRootControl: ValidateTargetControlOrContainer): boolean {
 		let isValid = true;
 		const sTargetRootControlId = oTargetRootControl.getId();
 
@@ -836,11 +897,20 @@ export default class Validator extends BaseObject {
 				}
 				if (Array.isArray(aControlAggregation)) {
 					for (let j = 0; j < aControlAggregation.length; j++) {
-						if (!this._validate(aControlAggregation[j])) {
-							isValid = false;
+						const oControlAggregation = aControlAggregation[j];
+						if (oControlAggregation instanceof Control ||
+							oControlAggregation instanceof FormContainer ||
+							oControlAggregation instanceof FormElement ||
+							oControlAggregation instanceof IconTabFilter) {
+							if (!this._validate(oControlAggregation)) {
+								isValid = false;
+							}
 						}
 					}
-				} else {
+				} else if (aControlAggregation instanceof Control ||
+					aControlAggregation instanceof FormContainer ||
+					aControlAggregation instanceof FormElement ||
+					aControlAggregation instanceof IconTabFilter) {
 					if (!this._validate(aControlAggregation)) {
 						isValid = false;
 					}
@@ -859,10 +929,10 @@ export default class Validator extends BaseObject {
 	 * 
 	 * @private
 	 * @param {sap.ui.table.Table} oSapUiTableTable テーブルコントロール
-	 * @param {string[]|string} aColumnIndiciesOrIColumnIndex 非表示列を含む列インデックス値
-	 * @returns {string[]|string} 非表示列を除いた列インデックス値
+	 * @param {number[]|number} aColumnIndiciesOrIColumnIndex 非表示列を含む列インデックス値
+	 * @returns {number[]} 非表示列を除いた列インデックス値
 	 */
-	_toVisibledColumnIndex(oSapUiTableTable, aColumnIndiciesOrIColumnIndex) {
+	_toVisibledColumnIndex(oSapUiTableTable: Table, aColumnIndiciesOrIColumnIndex: number | number[]): number[] {
 		const aColumns = oSapUiTableTable.getColumns();
 
 		const convert = (iColumnIndex) => {
@@ -885,10 +955,7 @@ export default class Validator extends BaseObject {
 		for (let i = 0, n = aColumnIndicies.length; i < n; i++) {
 			results.push(convert(aColumnIndicies[i]));
 		}
-		if (bIsArray) {
-			return results;
-		}
-		return results[0];
+		return results;
 	};
 
 	/**
@@ -909,7 +976,7 @@ export default class Validator extends BaseObject {
 		}
 		// スクロールしてもテーブル内のセルのValueStateは前の状態のままなので、一旦、バリデーションエラーとして保持されている列のValuteStateを全行クリアする。
 		const aUniqColIds = Array.from(new Set(aInvalidRowCols.map(oInvalidRowCol => oInvalidRowCol.columnId)));
-		let aUniqColIndices = [];
+		let aUniqColIndices: number[] = [];
 		for (let i = 0, n = aUniqColIds.length; i < n; i++) {
 			const oColumn = ElementRegistry.get(aUniqColIds[i]);
 			if (!oColumn || !(oColumn instanceof Column) || !oColumn.getVisible()) {
@@ -934,7 +1001,7 @@ export default class Validator extends BaseObject {
 			if (!oColumn || !(oColumn instanceof Column) || !oColumn.getVisible()) {
 				continue;
 			}
-			const iVisibledColIndex = this._toVisibledColumnIndex(oTable, oTable.indexOfColumn(oColumn));
+			const iVisibledColIndex = this._toVisibledColumnIndex(oTable, oTable.indexOfColumn(oColumn))[0];
 			const oInvalidRow = oTable.getRows().find(oRow => oRow.getCells()[iVisibledColIndex].getBindingContext(sTableModelName).getPath() === aInvalidRowCols[i].rowPath);
 			if (oInvalidRow) {
 				const oInvalidCell = oInvalidRow.getCells()[iVisibledColIndex];
