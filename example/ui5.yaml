@@ -4,7 +4,7 @@ metadata:
   name: ui5-lib-learnin.ui5.validator-example
 framework:
   name: OpenUI5
-  version: 1.90.13
+  version: 1.96.18
   libraries:
     - name: sap.m
     - name: sap.ui.core
