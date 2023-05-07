@@ -4,7 +4,6 @@ import CheckBox from "sap/m/CheckBox";
 import ColumnListItem from "sap/m/ColumnListItem";
 import IconTabFilter from "sap/m/IconTabFilter";
 import Input from "sap/m/Input";
-import { default as sapMTable } from "sap/m/Table";
 import BaseObject from "sap/ui/base/Object";
 import Control from "sap/ui/core/Control";
 import Element, { registry as ElementRegistry } from "sap/ui/core/Element";
@@ -15,10 +14,14 @@ import Message from "sap/ui/core/message/Message";
 import JSONModel from "sap/ui/model/json/JSONModel";
 import FormContainer from "sap/ui/layout/form/FormContainer";
 import FormElement from "sap/ui/layout/form/FormElement";
-import { default as sapUiTableColumn } from "sap/ui/table/Column";
-import { default as sapUiTableRow } from "sap/ui/table/Row";
-import { default as sapUiTableTable } from "sap/ui/table/Table";
+import Column from "sap/ui/table/Column";
+import Row from "sap/ui/table/Row";
+import Table from "sap/ui/table/Table";
 import ListBinding from "sap/ui/model/ListBinding";
+
+// ui5-tooling-transpile が `import { default as sapMTable } from "sap/m/Table";` のようなデフォルトエクスポートのインポートへの別名付けの変換に対応していないため
+// デフォルトエクスポートクラス名が重複するものは別モジュールでインポートして対応している。
+import SapMTableUtil from "./SapMTableUtil";
 
 /**
  * スクロールイベントハンドラ等、頻繁に実行されるイベントを間引くためのラッパー
@@ -276,7 +279,7 @@ export default class Validator extends BaseObject {
 		});
 		this._sTableIdAttachedRowsUpdated.forEach(sTableId => {
 			const oTable = ElementRegistry.get(sTableId);
-			if (!oTable || !(oTable instanceof sapUiTableTable)) {
+			if (!oTable || !(oTable instanceof Table)) {
 				return;
 			}
 			if (this._isChildOrEqualControlId(oTable, sTargetRootControlId)) {
@@ -350,9 +353,8 @@ export default class Validator extends BaseObject {
 
 		let isTargetEqualsSapUiTableColumn = false;
 		let fnValidateFunction;
-		// if (oTargetControlOrAControls instanceof sapUiTableColumn && oTargetControlOrAControls.getParent().getBinding("rows") && oTargetControlOrAControls.getParent().getBinding("rows").getModel() instanceof JSONModel) {
-		if ((!Array.isArray(oTargetControlOrAControls) && oTargetControlOrAControls instanceof sapUiTableColumn && oTargetControlOrAControls.getParent().getBinding("rows") && oTargetControlOrAControls.getParent().getBinding("rows").getModel() instanceof JSONModel)
-			|| (Array.isArray(oTargetControlOrAControls) && oTargetControlOrAControls[0] instanceof sapUiTableColumn && oTargetControlOrAControls[0].getParent().getBinding("rows") && oTargetControlOrAControls[0].getParent().getBinding("rows").getModel() instanceof JSONModel)) {
+		if ((!Array.isArray(oTargetControlOrAControls) && oTargetControlOrAControls instanceof Column && oTargetControlOrAControls.getParent().getBinding("rows") && oTargetControlOrAControls.getParent().getBinding("rows").getModel() instanceof JSONModel)
+			|| (Array.isArray(oTargetControlOrAControls) && oTargetControlOrAControls[0] instanceof Column && oTargetControlOrAControls[0].getParent().getBinding("rows") && oTargetControlOrAControls[0].getParent().getBinding("rows").getModel() instanceof JSONModel)) {
 			if (Array.isArray(oTargetControlOrAControls) && oParam.isGroupedTargetControls) {
 				// 「とある列の全行の中に○○でかつ、別の列の全行の中にXXの場合、エラーとする」みたいな、列単位でグルーピングかつ複数列に跨った相関バリデーション。
 				// 複雑だし、そんなに需要もないかもしれないので、一旦、サポート外とする。
@@ -669,7 +671,7 @@ export default class Validator extends BaseObject {
 		if (this._mRegisteredValidator.has(oTargetRootControl.getId())) {
 			this._mRegisteredValidator.get(oTargetRootControl.getId()).forEach(oValidateFunction => {
 				if (oValidateFunction.isAttachValidator) {
-					if (oTargetRootControl instanceof sapUiTableTable && oTargetRootControl.getBinding("rows") && oTargetRootControl.getBinding("rows").getModel() instanceof JSONModel) {
+					if (oTargetRootControl instanceof Table && oTargetRootControl.getBinding("rows") && oTargetRootControl.getBinding("rows").getModel() instanceof JSONModel) {
 						const oTable = oTargetRootControl;
 
 						if (Array.isArray(oValidateFunction.targetControlOrControls)) {
@@ -733,7 +735,7 @@ export default class Validator extends BaseObject {
 		}
 		// sap.ui.table.Table の場合は普通にaggregationを再帰的に処理すると存在しない行も処理対象になってしまうため、
 		// Table.getBinding().getLength() してその行までの getRows() の getCells() のコントロールを処理する。
-		if (oTargetRootControl instanceof sapUiTableTable) {
+		if (oTargetRootControl instanceof Table) {
 			const oTableBinding = oTargetRootControl.getBinding();
 			if (oTableBinding && oTableBinding instanceof ListBinding) {
 				const aRows = oTargetRootControl.getRows();
@@ -789,7 +791,7 @@ export default class Validator extends BaseObject {
 			return isValid;
 		}
 
-		if (oTargetRootControl instanceof sapUiTableTable && oTargetRootControl.getBinding("rows") && oTargetRootControl.getBinding("rows").getModel() instanceof JSONModel) {
+		if (oTargetRootControl instanceof Table && oTargetRootControl.getBinding("rows") && oTargetRootControl.getBinding("rows").getModel() instanceof JSONModel) {
 			// sap.ui.table.Table 配下のコントロールは画面に表示されている数だけしか存在せず、スクロール時は BindingContext が変わっていくだけなので、
 			// ValueStateやValueTextをコントロールにセットするとスクロールしてデータが変わってもそのままになってしまうため、
 			// バリデーションはコントロールに対してではなく、バインドされているモデルデータに対して実施し、エラーがあれば this._mInvalidTableRowCols にエラー行・列情報を保存するとともに
@@ -801,7 +803,7 @@ export default class Validator extends BaseObject {
 
 		// sap.ui.table.Table の場合は普通にaggregationを再帰的に処理すると存在しない行も処理対象になってしまうため、
 		// Table.getBinding().getLength() してその行までの getRows() の getCells() のコントロールを検証する。
-		} else if (oTargetRootControl instanceof sapUiTableTable) {
+		} else if (oTargetRootControl instanceof Table) {
 			const oTableBinding = oTargetRootControl.getBinding("rows");
 			if (oTableBinding && oTableBinding instanceof ListBinding) {
 				const aRows = oTargetRootControl.getRows();
@@ -898,7 +900,7 @@ export default class Validator extends BaseObject {
 	 */
 	_renewValueStateInTable(oEvent) {
 		const oTable = oEvent.getSource();
-		if (!(oTable instanceof sapUiTableTable)) {
+		if (!(oTable instanceof Table)) {
 			return;
 		}
 		const aInvalidRowCols = this._mInvalidTableRowCols.get(oTable.getId());
@@ -910,7 +912,7 @@ export default class Validator extends BaseObject {
 		let aUniqColIndices = [];
 		for (let i = 0, n = aUniqColIds.length; i < n; i++) {
 			const oColumn = ElementRegistry.get(aUniqColIds[i]);
-			if (!oColumn || !(oColumn instanceof sapUiTableColumn) || !oColumn.getVisible()) {
+			if (!oColumn || !(oColumn instanceof Column) || !oColumn.getVisible()) {
 				continue;
 			}
 			aUniqColIndices.push(oTable.indexOfColumn(oColumn));
@@ -929,7 +931,7 @@ export default class Validator extends BaseObject {
 		const sTableModelName = oTable.getBindingInfo("rows")["model"];
 		for (let i = 0, n = aInvalidRowCols.length; i < n; i++) {
 			const oColumn = ElementRegistry.get(aInvalidRowCols[i].columnId);
-			if (!oColumn || !(oColumn instanceof sapUiTableColumn) || !oColumn.getVisible()) {
+			if (!oColumn || !(oColumn instanceof Column) || !oColumn.getVisible()) {
 				continue;
 			}
 			const iVisibledColIndex = this._toVisibledColumnIndex(oTable, oTable.indexOfColumn(oColumn));
@@ -1033,7 +1035,7 @@ export default class Validator extends BaseObject {
 			this._mRegisteredValidator.get(sControlId).forEach(oRegisteredValidatorInfo => {
 				if (!oRegisteredValidatorInfo.validateFunction(oRegisteredValidatorInfo)) {
 					isValid = false;
-					if (oControl instanceof sapUiTableTable) {
+					if (oControl instanceof Table) {
 						hasInvalidCellsInTable = true;
 					}
 				}
@@ -1308,7 +1310,7 @@ export default class Validator extends BaseObject {
 	 * @returns true: JSONModel がバインドされた sap.ui.table.Table 内のセル, false: それ以外
 	 */
 	_isCellInSapUiTableTableBindedJsonModel(oControl) {
-		return oControl.getParent() && oControl.getParent().getParent() instanceof sapUiTableTable && oControl.getParent().getParent().getBinding("rows") && oControl.getParent().getParent().getBinding("rows").getModel() instanceof JSONModel;
+		return oControl.getParent() && oControl.getParent().getParent() instanceof Table && oControl.getParent().getParent().getBinding("rows") && oControl.getParent().getParent().getBinding("rows").getModel() instanceof JSONModel;
 	}
 
 	/**
@@ -1748,11 +1750,11 @@ export default class Validator extends BaseObject {
 		if (oControl.getParent) {
 			const oParent = oControl.getParent();
 
-			if (oParent instanceof sapUiTableRow) {
+			if (oParent instanceof Row) {
 				// sap.ui.table.Table, sap.ui.table.Row, sap.ui.table.Column の場合
 				const oRow = oParent;
 				const oTable = oRow.getParent();
-				if (oTable instanceof sapUiTableTable) {
+				if (oTable instanceof Table) {
 					const iColumnIndex = oRow.indexOfCell(oControl);
 					if (iColumnIndex !== -1) {
 						// oRow.indexOfCell では visible=false のカラムはスキップされているのでインデックス値を合わせるためフィルタする
@@ -1767,19 +1769,7 @@ export default class Validator extends BaseObject {
 				return undefined;
 			} else if (oParent instanceof ColumnListItem) {
 				// sap.m.Table, sap.m.Column, sap.m.ColumnListItem の場合
-				const oColumnListItem = oParent;
-				const oTable = oColumnListItem.getParent();
-				if (oTable instanceof sapMTable) {
-					const iColumnIndex = oColumnListItem.indexOfCell(oControl);
-					if (iColumnIndex !== -1) {
-						// oRow.indexOfCell では visible=false のカラムはスキップされているのでインデックス値を合わせるためフィルタする
-						const oColumnHeader = oTable.getColumns().filter(col => col.getVisible())[iColumnIndex].getHeader();
-						if ("getText" in oColumnHeader && typeof oColumnHeader.getText === "function") {
-							return oColumnHeader.getText();
-						}
-					}
-				}
-				return undefined;
+				return SapMTableUtil.getLabelText(oControl, oParent);
 			}
 		}
 		const aLabelId = LabelEnablement.getReferencingLabels(oControl);
