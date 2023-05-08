@@ -1648,6 +1648,9 @@ export default class Validator extends BaseObject {
 			aControls.push(oControlOrAControls);
 		}
 		const aTargets = aControls.map(oControl => {
+			if (oControl.getBinding("dateValue")) {
+				return oControl.getId() + "/dateValue";
+			}
 			if (oControl.getBinding("value")) {
 				return oControl.getId() + "/value";
 			}
@@ -1666,6 +1669,9 @@ export default class Validator extends BaseObject {
 			if (oControl.getBinding("selectedDates")) {
 				return oControl.getId() + "/selectedDates";
 			}
+			if (oControl.getBinding("text")) {
+				return oControl.getId() + "/text";
+			}
 			return undefined;
 		});
 		if (aTargets.length > 0) {
@@ -1682,6 +1688,9 @@ export default class Validator extends BaseObject {
 	 * @returns バインドされているプロパティ名
 	 */
 	_resolveBindingPropertyName(oControl) {
+		if (oControl.getBinding("dateValue")) {
+			return "dateValue";
+		}
 		if (oControl.getBinding("value")) {
 			return "value";
 		}
@@ -1699,6 +1708,9 @@ export default class Validator extends BaseObject {
 		}
 		if (oControl.getBinding("selectedDates")) {
 			return "selectedDates";
+		}
+		if (oControl.getBinding("text")) {
+			return "text";
 		}
 		return undefined;
 	}
