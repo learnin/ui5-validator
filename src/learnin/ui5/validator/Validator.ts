@@ -20,6 +20,7 @@ import Table from "sap/ui/table/Table";
 import ListBinding from "sap/ui/model/ListBinding";
 import ManagedObject from "sap/ui/base/ManagedObject";
 import ResourceBundle from "sap/base/i18n/ResourceBundle";
+import Event from "sap/ui/base/Event";
 
 // ui5-tooling-transpile が `import { default as sapMTable } from "sap/m/Table";` のようなデフォルトエクスポートのインポートへの別名付けの変換に対応していないため
 // デフォルトエクスポートクラス名が重複するものは別モジュールでインポートして対応している。
@@ -704,7 +705,7 @@ export default class Validator extends BaseObject {
 	 * @private
 	 * @param {ValidateTargetControlOrContainer} oTargetRootControl バリデータ関数を attach するコントロールもしくはそれを含むコンテナ
 	 */
-	_attachValidator(oTargetRootControl: ValidateTargetControlOrContainer): void {
+	private _attachValidator(oTargetRootControl: ValidateTargetControlOrContainer): void {
 		// 非表示のコントロールも後で表示される可能性が想定されるため、処理対象とする
 		if (!(oTargetRootControl instanceof Control ||
 			oTargetRootControl instanceof FormContainer ||
@@ -836,7 +837,7 @@ export default class Validator extends BaseObject {
 	 * @param {ValidateTargetControlOrContainer} oTargetRootControl 検証対象のコントロールもしくはそれを含むコンテナ
 	 * @returns {boolean}　true: valid, false: invalid
 	 */
-	_validate(oTargetRootControl: ValidateTargetControlOrContainer): boolean {
+	private _validate(oTargetRootControl: ValidateTargetControlOrContainer): boolean {
 		let isValid = true;
 		const sTargetRootControlId = oTargetRootControl.getId();
 
@@ -845,7 +846,7 @@ export default class Validator extends BaseObject {
 			oTargetRootControl instanceof FormElement ||
 			oTargetRootControl instanceof IconTabFilter) &&
 			oTargetRootControl.getVisible())) {
-			
+
 			if (!this._callRegisteredValidator(oTargetRootControl)) {
 				isValid = false;
 			}
@@ -932,7 +933,7 @@ export default class Validator extends BaseObject {
 	 * @param {number[]|number} aColumnIndiciesOrIColumnIndex 非表示列を含む列インデックス値
 	 * @returns {number[]} 非表示列を除いた列インデックス値
 	 */
-	_toVisibledColumnIndex(oSapUiTableTable: Table, aColumnIndiciesOrIColumnIndex: number | number[]): number[] {
+	private _toVisibledColumnIndex(oSapUiTableTable: Table, aColumnIndiciesOrIColumnIndex: number | number[]): number[] {
 		const aColumns = oSapUiTableTable.getColumns();
 
 		const convert = (iColumnIndex) => {
@@ -965,7 +966,7 @@ export default class Validator extends BaseObject {
 	 * @private
 	 * @param {sap.ui.base.Event} oEvent イベント
 	 */
-	_renewValueStateInTable(oEvent) {
+	private _renewValueStateInTable(oEvent: Event): void {
 		const oTable = oEvent.getSource();
 		if (!(oTable instanceof Table)) {
 			return;
@@ -1018,8 +1019,12 @@ export default class Validator extends BaseObject {
 	 * @private
 	 * @param {sap.ui.base.Event} oEvent イベント
 	 */
-	_clearInValidRowColsInTable(oEvent) {
-		const sTableId = oEvent.getSource().getId();
+	private _clearInValidRowColsInTable(oEvent: Event): void {
+		const oEventSource = oEvent.getSource();
+		if (!("getId" in oEventSource) || typeof oEventSource.getId !== "function") {
+			return;
+		}
+		const sTableId = oEventSource.getId();
 		if (this._mInvalidTableRowCols.has(sTableId)) {
 			this._mInvalidTableRowCols.delete(sTableId);
 		}
@@ -1036,7 +1041,7 @@ export default class Validator extends BaseObject {
 	 * @param {string[]} aLabelTexts
 	 * @param {string} sValidateFunctionId 
 	 */
-	_addMessageAndInvalidTableRowCol(aColumns, sTableBindingPath, aTableDataRowIndices, sMessageText, aLabelTexts, sValidateFunctionId) {
+	private _addMessageAndInvalidTableRowCol(aColumns: Column[], sTableBindingPath: string, aTableDataRowIndices: number[], sMessageText: string, aLabelTexts: string[], sValidateFunctionId: string): void {
 		let hasValidationError = false;
 
 		aColumns.forEach((oColumn, i) => {
@@ -1072,7 +1077,7 @@ export default class Validator extends BaseObject {
 	 * @private
 	 * @param {sap.ui.table.Table} oTable テーブル
 	 */
-	_attachTableRowsUpdater(oTable) {
+	private _attachTableRowsUpdater(oTable: Table): void {
 		if (this._sTableIdAttachedRowsUpdated.has(oTable.getId())) {
 			return;
 		}
@@ -1090,10 +1095,10 @@ export default class Validator extends BaseObject {
 	 * oControl のバリデーションの直後に実行するように登録済のバリデータ関数を呼び出す。
 	 * 
 	 * @private
-	 * @param {sap.ui.core.Control} oControl コントロール
+	 * @param {ValidateTargetControlOrContainer} oControl コントロール
 	 * @returns {boolean} true: valid, false: invalid
 	 */
-	_callRegisteredValidator(oControl) {
+	private _callRegisteredValidator(oControl: ValidateTargetControlOrContainer): boolean {
 		let isValid = true;
 		const sControlId = oControl.getId();
 		let hasInvalidCellsInTable = false;
@@ -1109,7 +1114,7 @@ export default class Validator extends BaseObject {
 			});
 		}
 		if (hasInvalidCellsInTable) {
-			this._attachTableRowsUpdater(oControl);
+			this._attachTableRowsUpdater(oControl as Table);
 		}
 		return isValid;
 	};
