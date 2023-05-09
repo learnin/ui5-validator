@@ -1568,7 +1568,7 @@ export default class Validator extends BaseObject {
 	};
 
 	/**
-	 * 不正な値を入力された場合、標準のバリデーションによりエラーステートがセットされている可能性があるため、
+	 * 不正な値を入力された場合、UI5標準のバリデーション(sap.ui.model.type.XXX の constraints によるバリデーション)によりエラーステートがセットされている可能性があるため、
 	 * 該当のコントロールにエラーメッセージがまだあるか確認し、ない場合にのみエラーステートをクリアする。
 	 * 
 	 * @private
@@ -1587,32 +1587,37 @@ export default class Validator extends BaseObject {
 		} else {
 			aTargets = sTargetOrATargets;
 		}
-		const aMessages = sap.ui.getCore().getMessageManager().getMessageModel().getProperty("/");
-		if (aTargets.every(sTarget => aMessages.some(oMessage => (oMessage.getTargets && oMessage.getTargets().includes(sTarget)) || oMessage.getTarget() === sTarget))) {
-			return;
-		}
-		if (this._isCellInSapUiTableTableBindedJsonModel(oControl)) {
-			const oRow = oControl.getParent();
-			const oTable = oRow.getParent();
-			const sTableId = oTable.getId();
-			let aInvalidRowCols = this._mInvalidTableRowCols.get(sTableId);
-			if (!aInvalidRowCols) {
-				this._setValueState(oControl, ValueState.None, null);
+		// フォーカスアウトによりUI5標準のバリデーションも実行されるため、どちらが先かやメッセージモデルに登録されるタイミング次第で、
+		// ValuteState が正しくなるかならないかが変わってきてしまうため、標準バリデーションの処理が先に実行されることを期待して、非同期処理にしている。
+		// TODO: 非同期処理にしても確実とは言えない。Control から sap.ui.model.type.String 等を取得して validateValue を呼べれば非同期にせずとも確実にエラーが残っているか判断できるはずなので可能ならそうした方がよい。
+		setTimeout(() => {
+			const aMessages = sap.ui.getCore().getMessageManager().getMessageModel().getProperty("/");
+			if (aTargets.every(sTarget => aMessages.some(oMessage => (oMessage.getTargets && oMessage.getTargets().includes(sTarget)) || oMessage.getTarget() === sTarget))) {
 				return;
 			}
-			const iVisibledColIndex = oRow.indexOfCell(oControl);
-			const oColumn = oTable.getColumns().filter(oColumn => oColumn.getVisible())[iVisibledColIndex];
-			const sColId = oColumn.getId();
-			const sTableModelName = oTable.getBindingInfo("rows").model;
-			const sRowBindingPath = oRow.getCells()[iVisibledColIndex].getBindingContext(sTableModelName).getPath();
-			const oInvalidRowCol = aInvalidRowCols.find(oInvalidRowCol => oInvalidRowCol.rowPath === sRowBindingPath && oInvalidRowCol.columnId === sColId);
-			if (oInvalidRowCol) {
-				// エラーがまだ残っている場合は、残っているエラーのメッセージに変更する。
-				this._setValueState(oControl, ValueState.Error, oInvalidRowCol.message);
-				return;	
+			if (this._isCellInSapUiTableTableBindedJsonModel(oControl)) {
+				const oRow = oControl.getParent();
+				const oTable = oRow.getParent();
+				const sTableId = oTable.getId();
+				let aInvalidRowCols = this._mInvalidTableRowCols.get(sTableId);
+				if (!aInvalidRowCols) {
+					this._setValueState(oControl, ValueState.None, null);
+					return;
+				}
+				const iVisibledColIndex = oRow.indexOfCell(oControl);
+				const oColumn = oTable.getColumns().filter(oColumn => oColumn.getVisible())[iVisibledColIndex];
+				const sColId = oColumn.getId();
+				const sTableModelName = oTable.getBindingInfo("rows").model;
+				const sRowBindingPath = oRow.getCells()[iVisibledColIndex].getBindingContext(sTableModelName).getPath();
+				const oInvalidRowCol = aInvalidRowCols.find(oInvalidRowCol => oInvalidRowCol.rowPath === sRowBindingPath && oInvalidRowCol.columnId === sColId);
+				if (oInvalidRowCol) {
+					// エラーがまだ残っている場合は、残っているエラーのメッセージに変更する。
+					this._setValueState(oControl, ValueState.Error, oInvalidRowCol.message);
+					return;	
+				}
 			}
-		}
-		this._setValueState(oControl, ValueState.None, null);
+			this._setValueState(oControl, ValueState.None, null);
+		}, 1);
 	};
 
 	/**
