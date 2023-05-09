@@ -718,7 +718,7 @@ export default class Validator extends BaseObject {
 		// labelFor 属性で紐づく Label や、sap.ui.layout.form.SimpleForm 内での対象コントロール・エレメントの直前の Label の required 属性まで見て判断してくれる。
 		// （なお、ariaLabelledBy で参照される Label までは見てくれない）
 		// disable のコントロールも後で有効化される可能性が想定されるため、処理対象とする
-		if (LabelEnablement.isRequired(oTargetRootControl)) {
+		if (oTargetRootControl instanceof Control && LabelEnablement.isRequired(oTargetRootControl)) {
 			this._attachNotRegisteredValidator(oTargetRootControl);
 		}
 		if (this._mRegisteredValidator.has(oTargetRootControl.getId())) {
@@ -1125,8 +1125,8 @@ export default class Validator extends BaseObject {
 	 * @private
 	 * @param {sap.ui.core.Control} oControl コントロール
 	 */
-	_attachNotRegisteredValidator(oControl) {
-		if (!oControl.attachSelectionFinish && !oControl.attachChange && !oControl.attachSelect) {
+	private _attachNotRegisteredValidator(oControl: Control): void {
+		if (!("attachSelectionFinish" in oControl) && !("attachChange" in oControl) && !("attachSelect" in oControl)) {
 			// 対象外
 			return;
 		}
