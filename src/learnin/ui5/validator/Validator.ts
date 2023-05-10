@@ -287,7 +287,7 @@ export default class Validator extends BaseObject {
 
 		this._mControlIdAttachedValidator.forEach((aValidateFunctionIds, sControlId) => {
 			const oControl = ElementRegistry.get(sControlId);
-			if (!oControl) {
+			if (!oControl || !(oControl instanceof Control)) {
 				return;
 			}
 			if (this._isChildOrEqualControlId(oControl, sTargetRootControlId)) {
@@ -1151,7 +1151,13 @@ export default class Validator extends BaseObject {
 	 *                                           false: oControlOrAControls を1つのグループとみなさない
 	 * @param {sap.ui.core.Control|sap.ui.core.Control[]} [oControlOrAControlsMoreAttachValidator] oControlOrAControls 以外に fnTest を追加で attach するコントロールの配列
 	 */
-	_attachRegisteredValidator(oControlOrAControls, fnTest, sMessageTextOrAMessageTexts, sValidateFunctionId, bIsGroupedTargetControls, oControlOrAControlsMoreAttachValidator) {
+	private _attachRegisteredValidator(
+		oControlOrAControls: Control | Control[],
+		fnTest: Function,
+		sMessageTextOrAMessageTexts: string | string[],
+		sValidateFunctionId: string,
+		bIsGroupedTargetControls: boolean,
+		oControlOrAControlsMoreAttachValidator: Control | Control[]): void {
 		let aControls;
 		if (!Array.isArray(oControlOrAControls)) {
 			aControls = [oControlOrAControls];
@@ -1212,7 +1218,7 @@ export default class Validator extends BaseObject {
 	 * @param {string} sValidateFunctionId {@link #registerValidator registerValidator} や {@link #registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は ""
 	 * @returns {boolean} true: フォーカスアウトバリデータを attach 済み, false: フォーカスアウトバリデータを attach 済みでない
 	 */
-	_isAttachedValidator(sControlId, sValidateFunctionId) {
+	private _isAttachedValidator(sControlId: string, sValidateFunctionId: string): boolean {
 		const aValidateFunctionIds = this._mControlIdAttachedValidator.get(sControlId);
 		if (!aValidateFunctionIds) {
 			return false;
@@ -1226,9 +1232,9 @@ export default class Validator extends BaseObject {
 	 * @private
 	 * @param {sap.ui.core.Control} oControl コントロール
 	 * @param {string} sValidateFunctionId {@link #registerValidator registerValidator} や {@link #registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は ""
-	 * @param {any} アタッチする関数に渡すデータ
+	 * @param {object|string} アタッチする関数に渡すデータ
 	 */
-	_internalAttachValidator(oControl, sValidateFunctionId, oData) {
+	private _internalAttachValidator(oControl: Control, sValidateFunctionId: string, oData: object | string): void {
 		const sControlId = oControl.getId();
 		const markAttachedValidator = () => {
 			const aValidateFunctionIds = this._mControlIdAttachedValidator.get(sControlId);
@@ -1239,13 +1245,13 @@ export default class Validator extends BaseObject {
 			}
 		};
 		const attachValidator = (fnValidator) => {
-			if (oControl.attachSelectionFinish) {
+			if ("attachSelectionFinish" in oControl && typeof oControl.attachSelectionFinish === "function") {
 				oControl.attachSelectionFinish(oData, fnValidator, this);
 				markAttachedValidator();
-			} else if (oControl.attachChange) {
+			} else if ("attachChange" in oControl && typeof oControl.attachChange === "function") {
 				oControl.attachChange(oData, fnValidator, this);
 				markAttachedValidator();
-			} else if (oControl.attachSelect) {
+			} else if ("attachSelect" in oControl && typeof oControl.attachSelect === "function") {
 				oControl.attachSelect(oData, fnValidator, this);
 				markAttachedValidator();
 			}
@@ -1263,18 +1269,18 @@ export default class Validator extends BaseObject {
 	 * @private
 	 * @param {sap.ui.core.Control} oControl コントロール
 	 */
-	_detachAllValidators(oControl) {
+	private _detachAllValidators(oControl: Control): void {
 		const sControlId = oControl.getId();
 		const aValidateFunctionIds = this._mControlIdAttachedValidator.get();
 		if (!aValidateFunctionIds) {
 			return;
 		}
 		const detachValidator = (fnValidator) => {
-			if (oControl.detachSelectionFinish) {
+			if ("detachSelectionFinish" in oControl && typeof oControl.detachSelectionFinish === "function") {
 				oControl.detachSelectionFinish(fnValidator, this);
-			} else if (oControl.detachChange) {
+			} else if ("detachChange" in oControl && typeof oControl.detachChange === "function") {
 				oControl.detachChange(fnValidator, this);
-			} else if (oControl.detachSelect) {
+			} else if ("detachSelect" in oControl && typeof oControl.detachSelect === "function") {
 				oControl.detachSelect(fnValidator, this);
 			}
 		};
@@ -1295,8 +1301,11 @@ export default class Validator extends BaseObject {
 	 * @param {sap.ui.base.Event} oEvent イベント
 	 * @param {string} sMessageText エラーメッセージ
 	 */
-	_notRegisteredValidator(oEvent, sMessageText) {
+	private _notRegisteredValidator(oEvent: Event, sMessageText: string): void {
 		const oControl = oEvent.getSource();
+		if (!(oControl instanceof Control)) {
+			return;
+		}
 		if (this._isNullValue(oControl)) {
 			if (this._isCellInSapUiTableTableBindedJsonModel(oControl)) {
 				this._setErrorCellInSapUiTableTable(oControl, sMessageText, "", false);
@@ -1321,13 +1330,21 @@ export default class Validator extends BaseObject {
 	 * @private
 	 * @param {sap.ui.base.Event} oEvent イベント
 	 * @param {Object} oData データ
+	 * @param {sap.ui.core.Control} oData.targetControl
 	 * @param {function} oData.test バリデータ関数
 	 * @param {sap.ui.core.Control[]} oData.controls 合わせてエラー状態がセットまたは解除されるコントロールの配列
 	 * @param {boolean} oData.isGroupedTargetControls true: oData.controls を1つのグループとみなす, false: oData.controls を1つのグループとみなさない
 	 * @param {string} oData.messageText エラーメッセージ
 	 * @param {string} oData.validateFunctionId バリデータ関数を識別するID
 	 */
-	_registeredvalidator(oEvent, oData) {
+	private _registeredvalidator(oEvent: Event, oData: {
+		targetControl: Control,
+		test: Function,
+		controls: Control[],
+		isGroupedTargetControls: boolean,
+		messageText: string,
+		validateFunctionId: string
+	}): void {
 		const oControl = oData.targetControl;
 		const oControlOrAControls = oData.controls.length > 1 ? oData.controls : oData.controls[0];
 		let isValid;
@@ -1379,9 +1396,9 @@ export default class Validator extends BaseObject {
 	 * 
 	 * @private
 	 * @param {sap.ui.core.Control} oControl コントロール
-	 * @returns true: JSONModel がバインドされた sap.ui.table.Table 内のセル, false: それ以外
+	 * @returns {boolean} true: JSONModel がバインドされた sap.ui.table.Table 内のセル, false: それ以外
 	 */
-	_isCellInSapUiTableTableBindedJsonModel(oControl) {
+	private _isCellInSapUiTableTableBindedJsonModel(oControl: Control): boolean {
 		return oControl.getParent() && oControl.getParent().getParent() instanceof Table && oControl.getParent().getParent().getBinding("rows") && oControl.getParent().getParent().getBinding("rows").getModel() instanceof JSONModel;
 	}
 
