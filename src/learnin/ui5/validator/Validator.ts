@@ -259,10 +259,8 @@ export default class Validator extends BaseObject {
 		});
 
 		ElementRegistry.forEach((oElement, sId) => {
-			if (this._isSetValueStateError(oElement)) {
-				if (this._isChildOrEqualControlId(oElement, sTargetRootControlId)) {
-					this._clearValueStateIfNoErrors(oElement, this._resolveMessageTarget(oElement));
-				}
+			if (oElement instanceof Control && this._isSetValueStateError(oElement) && this._isChildOrEqualControlId(oElement, sTargetRootControlId)) {
+				this._clearValueStateIfNoErrors(oElement, this._resolveMessageTarget(oElement));
 			}
 		});
 	};
@@ -886,7 +884,8 @@ export default class Validator extends BaseObject {
 			// sap.ui.core.LabelEnablement#isRequired は対象コントロール・エレメント自体の required 属性だけでなく、
 			// labelFor 属性で紐づく Label や、sap.ui.layout.form.SimpleForm 内での対象コントロール・エレメントの直前の Label の required 属性まで見て判断してくれる。
 			// （なお、ariaLabelledBy で参照される Label までは見てくれない）
-			if ((("getEnabled" in oTargetRootControl && oTargetRootControl.getEnabled()) || !("getEnabled" in oTargetRootControl)) &&
+			if (oTargetRootControl instanceof Control &&
+				(("getEnabled" in oTargetRootControl && typeof oTargetRootControl.getEnabled === "function" && oTargetRootControl.getEnabled()) || !("getEnabled" in oTargetRootControl)) &&
 				LabelEnablement.isRequired(oTargetRootControl)) {
 				isValid = this._validateRequired(oTargetRootControl);
 			}
@@ -1411,13 +1410,19 @@ export default class Validator extends BaseObject {
 	 * @param {string} sValidateFunctionId registerValidator/registerRequiredValidator で登録したバリデータ関数のID、デフォルトの必須バリデータの場合は ""
 	 * @param {boolean} isGroupedTargetControls
 	 */
-	_setErrorCellInSapUiTableTable(oControlOrAControls, sMessageText, sValidateFunctionId, isGroupedTargetControls) {
+	private _setErrorCellInSapUiTableTable(oControlOrAControls: Control | Control[], sMessageText: string, sValidateFunctionId: string, isGroupedTargetControls: boolean): void {
 		// Array.isArray(oControlOrAControls) && !isGroupedTargetControls - テーブル内の同一行内の項目相関バリデーション（e.g. A列がBの場合は、C列はDにしてください） or
 		// Array.isArray(oControlOrAControls) && isGroupedTargetControls - テーブル内の同一項目内の相関バリデーション（e.g. A列のいずれかはBにしてください） or
 		// !Array.isArray(oControlOrAControls) - テーブル内の単項目バリデーション
 		const aControls = Array.isArray(oControlOrAControls) ? oControlOrAControls : [oControlOrAControls];
 		const oRow = aControls[0].getParent();
+		if (!(oRow instanceof Row)) {
+			return;
+		}
 		const oTable = oRow.getParent();
+		if (!(oTable instanceof Table)) {
+			return;
+		}
 		const aVisibledColIndices = aControls.map(oControl => oRow.indexOfCell(oControl));
 		const aColumns = oTable.getColumns().filter(oColumn => oColumn.getVisible()).filter((oCol, i) => aVisibledColIndices.includes(i));
 		const oTableBinding = oTable.getBinding("rows");
@@ -1448,7 +1453,7 @@ export default class Validator extends BaseObject {
 	 * @param {string} sValidateFunctionId registerValidator/registerRequiredValidator で登録したバリデータ関数のID、デフォルトの必須バリデータの場合は ""
 	 * @param {boolean} isGroupedTargetControls
 	 */
-	_clearErrorCellInSapUiTableTable(oControlOrAControls, sValidateFunctionId, isGroupedTargetControls) {
+	private _clearErrorCellInSapUiTableTable(oControlOrAControls: Control | Control[], sValidateFunctionId: string, isGroupedTargetControls: boolean): void {
 		let aControls;
 		if (!Array.isArray(oControlOrAControls)) {
 			aControls = [oControlOrAControls];
@@ -1509,7 +1514,7 @@ export default class Validator extends BaseObject {
 	 * @param {sap.ui.core.Control} oControl 検証対象のコントロール
 	 * @returns {boolean}　true: valid、false: invalid
 	 */
-	_validateRequired(oControl) {
+	private _validateRequired(oControl: Control): boolean {
 		if (!this._isNullValue(oControl)) {
 			return true;
 		}
@@ -1526,14 +1531,14 @@ export default class Validator extends BaseObject {
 	 * @param {sap.ui.table.Table} oTable 検証対象のテーブル
 	 * @returns true: バリデーションOK, false: バリデーションNG
 	 */
-	_validateRequiredInSapUiTableTable(oTable) {
+	private _validateRequiredInSapUiTableTable(oTable: Table): boolean {
 		let isValid = true;
 		const oTableBinding = oTable.getBinding("rows");
 		const sTableBindingPath = oTableBinding.getPath();
 		const aModelDataRecords = oTableBinding.getModel().getProperty(sTableBindingPath);
 		const aRows = oTable.getRows();
 		if (aModelDataRecords.length > 0 && aRows.length > 0) {
-			const aRequiredCells = aRows[0].getCells().filter(oCell => ((oCell.getEnabled && oCell.getEnabled()) || !oCell.getEnabled) && LabelEnablement.isRequired(oCell));
+			const aRequiredCells = aRows[0].getCells().filter(oCell => (("getEnabled" in oCell && typeof oCell.getEnabled === "function" && oCell.getEnabled()) || !("getEnabled" in oCell)) && LabelEnablement.isRequired(oCell));
 			if (aRequiredCells.length > 0) {
 				const aRequiredPropertyNames = aRequiredCells.map(requiredCell => this._resolveBindingPropertyName(requiredCell));
 				for (let i = 0; i < aModelDataRecords.length; i++) {
@@ -1568,7 +1573,7 @@ export default class Validator extends BaseObject {
 	 * @param {sap.ui.core.Control} oControl 対象のコントロール
 	 * @param {string} sValidateFunctionId {@link #registerValidator registerValidator} や {@link #registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は ""
 	 */
-	_removeMessageAndValueState(oControl, sValidateFunctionId) {
+	private _removeMessageAndValueState(oControl: Control, sValidateFunctionId: string): void {
 		const oMessageManager = sap.ui.getCore().getMessageManager();
 		const oMessageModel = oMessageManager.getMessageModel();
 		const sValidatorMessageName = _ValidatorMessage.getMetadata().getName();
@@ -1590,10 +1595,10 @@ export default class Validator extends BaseObject {
 	 * 
 	 * @private
 	 * @param {sap.ui.core.Control} oControl 処理対象のコントロール
-	 * @param {string|string[]} sTargetOrATargets セットされているメッセージの中から対象のコントロールのメッセージを判別するための Message の target/targets プロパティ値
+	 * @param {undefined|string|string[]} sTargetOrATargets セットされているメッセージの中から対象のコントロールのメッセージを判別するための Message の target/targets プロパティ値
 	 */
-	_clearValueStateIfNoErrors(oControl, sTargetOrATargets) {
-		if (!oControl.setValueState) {
+	private _clearValueStateIfNoErrors(oControl: Control, sTargetOrATargets: undefined | string | string[]): void {
+		if (!("setValueState" in oControl)) {
 			return;
 		}
 		let aTargets;
@@ -1613,8 +1618,8 @@ export default class Validator extends BaseObject {
 				return;
 			}
 			if (this._isCellInSapUiTableTableBindedJsonModel(oControl)) {
-				const oRow = oControl.getParent();
-				const oTable = oRow.getParent();
+				const oRow = oControl.getParent() as Row;
+				const oTable = oRow.getParent() as Table;
 				const sTableId = oTable.getId();
 				let aInvalidRowCols = this._mInvalidTableRowCols.get(sTableId);
 				if (!aInvalidRowCols) {
@@ -1624,7 +1629,8 @@ export default class Validator extends BaseObject {
 				const iVisibledColIndex = oRow.indexOfCell(oControl);
 				const oColumn = oTable.getColumns().filter(oColumn => oColumn.getVisible())[iVisibledColIndex];
 				const sColId = oColumn.getId();
-				const sTableModelName = oTable.getBindingInfo("rows").model;
+				const oBindingInfo = oTable.getBindingInfo("rows");
+				const sTableModelName = "model" in oBindingInfo ? String(oBindingInfo.model) : undefined;
 				const sRowBindingPath = oRow.getCells()[iVisibledColIndex].getBindingContext(sTableModelName).getPath();
 				const oInvalidRowCol = aInvalidRowCols.find(oInvalidRowCol => oInvalidRowCol.rowPath === sRowBindingPath && oInvalidRowCol.columnId === sColId);
 				if (oInvalidRowCol) {
@@ -1638,18 +1644,18 @@ export default class Validator extends BaseObject {
 	};
 
 	/**
-	 * oControl が sParentControlId のコントロール自身もしくはその子供かどうか判定する。
+	 * oElement が sParentControlId のコントロール自身もしくはその子供かどうか判定する。
 	 * 
 	 * @private
-	 * @param {sap.ui.core.Control} oControl 判定対象のコントロール
+	 * @param {sap.ui.core.Element} oElement 判定対象のコントロール
 	 * @param {string} sParentControlId 親コントロールID
 	 * @returns {boolean} true: 親コントロール自身かその子供, false: 親コントロールでもその子供でもない
 	 */
-	_isChildOrEqualControlId(oControl, sParentControlId) {
-		if (oControl.getId() === sParentControlId) {
+	private _isChildOrEqualControlId(oElement: Element, sParentControlId: string): boolean {
+		if (oElement.getId() === sParentControlId) {
 			return true;
 		}
-		let oTargetControl = oControl;
+		let oTargetControl: ManagedObject = oElement;
 
 		while (oTargetControl.getParent()) {
 			if (oTargetControl.getParent().getId() === sParentControlId) {
@@ -1665,9 +1671,9 @@ export default class Validator extends BaseObject {
 	 * 
 	 * @private
 	 * @param {sap.ui.core.Control|sap.ui.core.Control[]} oControlOrAControls コントロールまたはその配列
-	 * @returns {string} target 文字列
+	 * @returns {undefined|string|string[]} target 文字列
 	 */
-	_resolveMessageTarget(oControlOrAControls) {
+	private _resolveMessageTarget(oControlOrAControls: Control | Control[]): undefined | string | string[] {
 		let aControls = [];
 		if (Array.isArray(oControlOrAControls)) {
 			aControls = oControlOrAControls;
@@ -1712,9 +1718,9 @@ export default class Validator extends BaseObject {
 	 * 
 	 * @private
 	 * @param {sap.ui.core.Control} oControl 
-	 * @returns バインドされているプロパティ名
+	 * @returns {string|undefined} バインドされているプロパティ名
 	 */
-	_resolveBindingPropertyName(oControl) {
+	private _resolveBindingPropertyName(oControl: Control): string | undefined {
 		if (oControl.getBinding("dateValue")) {
 			return "dateValue";
 		}
@@ -1749,13 +1755,13 @@ export default class Validator extends BaseObject {
 	 * @param {sap.ui.core.Control} oControl 検証対象のコントロール
 	 * @returns {boolean} true: 値が空, false: 値が空でない
 	 */
-	_isNullValue(oControl) {
-		if (!oControl.getValue &&
-			!oControl.getSelectedKey &&
-			!oControl.getSelectedKeys &&
-			!oControl.getSelected &&
-			!oControl.getSelectedIndex &&
-			!oControl.getSelectedDates) {
+	private _isNullValue(oControl: Control): boolean {
+		if (!("getValue" in oControl) &&
+			!("getSelectedKey" in oControl) &&
+			!("getSelectedKeys" in oControl) &&
+			!("getSelected" in oControl) &&
+			!("getSelectedIndex" in oControl) &&
+			!("getSelectedDates" in oControl)) {
 			// バリデーション対象外
 			return false;
 		}
@@ -1764,16 +1770,16 @@ export default class Validator extends BaseObject {
 		// ただし、getSelectedIndex もあり、例えば1つ目の選択肢が「選択してください」だったとしてそれを選択していた場合、getSelectedIndex は0を返すため、
 		// プルダウンフィールドは getSelectedIndex では判定できないため getSelectedIndex はみない。
 		// sap.m.MultiComboBox は getValue も getSelectedKeys もあるが、getValue では値は取得できないので getSelectedKeys で判定する必要がある。
-		if (oControl.getValue || oControl.getSelectedKey || oControl.getSelectedKeys || oControl.getSelected) {
-			return !((oControl.getValue && oControl.getValue()) ||
-				(oControl.getSelectedKey && oControl.getSelectedKey()) ||
-				(oControl.getSelectedKeys && oControl.getSelectedKeys().length > 0) ||
-				(oControl.getSelected && oControl.getSelected()));
+		if ("getValue" in oControl || "getSelectedKey" in oControl || "getSelectedKeys" in oControl || "getSelected" in oControl) {
+			return !(("getValue" in oControl && typeof oControl.getValue === "function" && oControl.getValue()) ||
+				("getSelectedKey" in oControl && typeof oControl.getSelectedKey === "function" && oControl.getSelectedKey()) ||
+				("getSelectedKeys" in oControl && typeof oControl.getSelectedKeys === "function" && oControl.getSelectedKeys().length > 0) ||
+				("getSelected" in oControl && typeof oControl.getSelected === "function" && oControl.getSelected()));
 		}
-		if (oControl.getSelectedIndex && oControl.getSelectedIndex() >= 0) {
+		if ("getSelectedIndex" in oControl && typeof oControl.getSelectedIndex === "function" && oControl.getSelectedIndex() >= 0) {
 			return false;
 		}
-		if (oControl.getSelectedDates) {
+		if ("getSelectedDates" in oControl && typeof oControl.getSelectedDates === "function") {
 			const aSelectedDates = oControl.getSelectedDates();
 			if (aSelectedDates.length > 0 && aSelectedDates[0].getStartDate()) {
 				return false;
