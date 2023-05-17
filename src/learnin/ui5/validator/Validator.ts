@@ -481,7 +481,7 @@ export default class Validator extends BaseObject {
 				if (Array.isArray(oTargetControlOrAControls)) {
 					if (oValidatorInfo.isGroupedTargetControls) {
 						const sMessageText = Array.isArray(sMessageTextOrAMessageTexts) ? sMessageTextOrAMessageTexts[0] : sMessageTextOrAMessageTexts;
-						this._addMessage(oTargetControlOrAControls, sMessageText, null, sValidateFunctionId, null);
+						this._addMessage(oTargetControlOrAControls, sMessageText, sValidateFunctionId, null, null);
 						
 						for (let i = 0; i < oTargetControlOrAControls.length; i++) {
 							this._setValueState(oTargetControlOrAControls[i], ValueState.Error, sMessageText);
@@ -491,11 +491,11 @@ export default class Validator extends BaseObject {
 
 					for (let i = 0; i < oTargetControlOrAControls.length; i++) {
 						const sMessageText = Array.isArray(sMessageTextOrAMessageTexts) ? sMessageTextOrAMessageTexts[i] : sMessageTextOrAMessageTexts;
-						this._addMessage(oTargetControlOrAControls[i], sMessageText, null, sValidateFunctionId, null);
+						this._addMessage(oTargetControlOrAControls[i], sMessageText, sValidateFunctionId, null, null);
 						this._setValueState(oTargetControlOrAControls[i], ValueState.Error, sMessageText);
 					}
 				} else {
-					this._addMessage(oTargetControlOrAControls, sMessageTextOrAMessageTexts, null, sValidateFunctionId, null);
+					this._addMessage(oTargetControlOrAControls, sMessageTextOrAMessageTexts, sValidateFunctionId, null, null);
 					this._setValueState(oTargetControlOrAControls, ValueState.Error, sMessageTextOrAMessageTexts);
 				}
 				return false;
@@ -1066,7 +1066,7 @@ export default class Validator extends BaseObject {
 			// <table:Table rows="{path: 'inGridTable>/data', templateShareable: false}">
 			// Message に紐付けるコントロールは、セルではなく sap.ui.table.Column とする。セルだとスクロールによりコントロールとバインドされているデータが変わってしまうし、
 			// 画面から見えなくなると自動的に MessageModel から削除されてしまうので。
-			this._addMessage(aColumns[0], sMessageText, `${sTableBindingPath}/${aTableDataRowIndices[0]}`, sValidateFunctionId, aLabelTexts.join(", "));
+			this._addMessage(aColumns[0], sMessageText, sValidateFunctionId, `${sTableBindingPath}/${aTableDataRowIndices[0]}`, aLabelTexts.join(", "));
 		}
 	};
 
@@ -1309,7 +1309,7 @@ export default class Validator extends BaseObject {
 			if (this._isCellInSapUiTableTableBindedJsonModel(oControl)) {
 				this._setErrorCellInSapUiTableTable(oControl, sMessageText, "", false);
 			} else {
-				this._addMessage(oControl, sMessageText, undefined, undefined, undefined);
+				this._addMessage(oControl, sMessageText);
 			}
 			this._setValueState(oControl, ValueState.Error, sMessageText);
 		} else {
@@ -1378,13 +1378,13 @@ export default class Validator extends BaseObject {
 			if (this._isCellInSapUiTableTableBindedJsonModel(oControl)) {
 				this._setErrorCellInSapUiTableTable(oData.controls, oData.messageText, oData.validateFunctionId, oData.isGroupedTargetControls);
 			} else if (oData.isGroupedTargetControls) {
-				this._addMessage(oData.controls, oData.messageText, undefined, oData.validateFunctionId, undefined);
+				this._addMessage(oData.controls, oData.messageText, oData.validateFunctionId);
 				
 				oData.controls.forEach(oCtl => {
 					this._setValueState(oCtl, ValueState.Error, oData.messageText);
 				});
 			} else {
-				this._addMessage(oControl, oData.messageText, undefined, oData.validateFunctionId, undefined);
+				this._addMessage(oControl, oData.messageText, oData.validateFunctionId);
 				this._setValueState(oControl, ValueState.Error, oData.messageText);
 			}
 		}
@@ -1519,7 +1519,7 @@ export default class Validator extends BaseObject {
 			return true;
 		}
 		const sMessageText = this._getRequiredErrorMessageTextByControl(oControl);
-		this._addMessage(oControl, sMessageText, undefined, undefined, undefined);
+		this._addMessage(oControl, sMessageText);
 		this._setValueState(oControl, ValueState.Error, sMessageText);
 		return false;
 	};
@@ -1795,7 +1795,7 @@ export default class Validator extends BaseObject {
 	 * @param {sap.ui.core.Control} oControl コントロール
 	 * @returns {string} 必須エラーメッセージ
 	 */
-	_getRequiredErrorMessageTextByControl(oControl) {
+	private _getRequiredErrorMessageTextByControl(oControl: Control): string {
 		const sRequiredInputMessage = "Required to input.";
 		const sRequiredSelectMessage = "Required to select.";
 
@@ -1803,11 +1803,11 @@ export default class Validator extends BaseObject {
 		if (oControl instanceof Input) {
 			return this._getResourceText(this.RESOURCE_BUNDLE_KEY_REQUIRED_INPUT, sRequiredInputMessage);
 		}
-		if (oControl.getSelectedKey ||
-			oControl.getSelectedKeys ||
-			oControl.getSelected ||
-			oControl.getSelectedIndex ||
-			oControl.getSelectedDates) {
+		if ("getSelectedKey" in oControl ||
+			"getSelectedKeys" in oControl ||
+			"getSelected" in oControl ||
+			"getSelectedIndex" in oControl ||
+			"getSelectedDates" in oControl) {
 			return this._getResourceText(this.RESOURCE_BUNDLE_KEY_REQUIRED_SELECT, sRequiredSelectMessage);
 		}
 		return this._getResourceText(this.RESOURCE_BUNDLE_KEY_REQUIRED_INPUT, sRequiredInputMessage);
@@ -1821,7 +1821,7 @@ export default class Validator extends BaseObject {
 	 * @param {string} sDefaultText デフォルトのテキスト
 	 * @returns {string} テキスト
 	 */
-	_getResourceText(sKey, sDefaultText) {
+	private _getResourceText(sKey: string, sDefaultText: string): string {
 		if (this._resourceBundle) {
 			return this._resourceBundle.getText(sKey);
 		}
@@ -1833,9 +1833,9 @@ export default class Validator extends BaseObject {
 	 * 
 	 * @private
 	 * @param {sap.ui.core.Control} oControl コントロール
-	 * @returns {string} ラベルテキスト。ラベルが見つからない場合は undefined
+	 * @returns {string|undefined} ラベルテキスト。ラベルが見つからない場合は undefined
 	 */
-	_getLabelText(oControl) {
+	private _getLabelText(oControl: Control): string | undefined {
 		// sap.ui.core.LabelEnablement#getReferencingLabels は
 		// labelFor 属性で紐づく Label や、sap.ui.layout.form.SimpleForm 内での対象コントロール・エレメントの直前の Label まで取得してくれる。
 		// （なお、ariaLabelledBy で参照される Label までは取得してくれない）
@@ -1898,13 +1898,13 @@ export default class Validator extends BaseObject {
 	 * {@link sap.ui.core.message.MessageManager MessageManager} にメッセージを追加する。
 	 *
 	 * @private
-	 * @param {sap.ui.core.Control|sap.ui.core.Control[]} oControlOrAControls 検証エラーとなったコントロール
+	 * @param {sap.ui.core.Control|sap.ui.core.Control[]|Column} oControlOrAControls 検証エラーとなったコントロール
 	 * @param {string} sMessageText エラーメッセージ
+	 * @param {string|null|undefined} [sValidateFunctionId] {@link #registerValidator registerValidator} や {@link #registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は "" or null or undefined
 	 * @param {string} [fullTarget] Message#fullTarget
-	 * @param {string} [sValidateFunctionId] {@link #registerValidator registerValidator} や {@link #registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は "" or null or undefined
 	 * @param {string} [sAdditionalText] Message#additionalText
 	 */
-	_addMessage(oControlOrAControls, sMessageText, fullTarget, sValidateFunctionId, sAdditionalText) {
+	private _addMessage(oControlOrAControls: Control | Control[] | Column, sMessageText: string, sValidateFunctionId?: string | null | undefined, fullTarget?: string, sAdditionalText?: string): void {
 		let oControl;
 		let aControls;
 		if (Array.isArray(oControlOrAControls)) {
@@ -1919,7 +1919,7 @@ export default class Validator extends BaseObject {
 			type: MessageType.Error,
 			additionalText: sAdditionalText || this._getLabelText(oControl),
 			processor: new ControlMessageProcessor(),
-			target: this._resolveMessageTarget(oControlOrAControls),
+			target: oControlOrAControls instanceof Column ? undefined : this._resolveMessageTarget(oControlOrAControls),
 			fullTarget: fullTarget ? fullTarget : "",
 			validationErrorControlIds: aControls.map(oControl => oControl.getId()),
 			validateFunctionId: sValidateFunctionId || ""
