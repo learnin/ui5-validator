@@ -11,6 +11,7 @@ import LabelEnablement from "sap/ui/core/LabelEnablement";
 import { MessageType, ValueState } from "sap/ui/core/library";
 import ControlMessageProcessor from "sap/ui/core/message/ControlMessageProcessor";
 import Message from "sap/ui/core/message/Message";
+import MessageProcessor from "sap/ui/core/message/MessageProcessor";
 import JSONModel from "sap/ui/model/json/JSONModel";
 import FormContainer from "sap/ui/layout/form/FormContainer";
 import FormElement from "sap/ui/layout/form/FormElement";
@@ -481,7 +482,7 @@ export default class Validator extends BaseObject {
 				if (Array.isArray(oTargetControlOrAControls)) {
 					if (oValidatorInfo.isGroupedTargetControls) {
 						const sMessageText = Array.isArray(sMessageTextOrAMessageTexts) ? sMessageTextOrAMessageTexts[0] : sMessageTextOrAMessageTexts;
-						this._addMessage(oTargetControlOrAControls, sMessageText, sValidateFunctionId, null, null);
+						this._addMessage(oTargetControlOrAControls, sMessageText, sValidateFunctionId);
 						
 						for (let i = 0; i < oTargetControlOrAControls.length; i++) {
 							this._setValueState(oTargetControlOrAControls[i], ValueState.Error, sMessageText);
@@ -491,11 +492,11 @@ export default class Validator extends BaseObject {
 
 					for (let i = 0; i < oTargetControlOrAControls.length; i++) {
 						const sMessageText = Array.isArray(sMessageTextOrAMessageTexts) ? sMessageTextOrAMessageTexts[i] : sMessageTextOrAMessageTexts;
-						this._addMessage(oTargetControlOrAControls[i], sMessageText, sValidateFunctionId, null, null);
+						this._addMessage(oTargetControlOrAControls[i], sMessageText, sValidateFunctionId);
 						this._setValueState(oTargetControlOrAControls[i], ValueState.Error, sMessageText);
 					}
 				} else {
-					this._addMessage(oTargetControlOrAControls, sMessageTextOrAMessageTexts, sValidateFunctionId, null, null);
+					this._addMessage(oTargetControlOrAControls, sMessageTextOrAMessageTexts, sValidateFunctionId);
 					this._setValueState(oTargetControlOrAControls, ValueState.Error, sMessageTextOrAMessageTexts);
 				}
 				return false;
@@ -1900,11 +1901,11 @@ export default class Validator extends BaseObject {
 	 * @private
 	 * @param {sap.ui.core.Control|sap.ui.core.Control[]|Column} oControlOrAControls 検証エラーとなったコントロール
 	 * @param {string} sMessageText エラーメッセージ
-	 * @param {string|null|undefined} [sValidateFunctionId] {@link #registerValidator registerValidator} や {@link #registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は "" or null or undefined
+	 * @param {string} [sValidateFunctionId] {@link #registerValidator registerValidator} や {@link #registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は "" or undefined
 	 * @param {string} [fullTarget] Message#fullTarget
 	 * @param {string} [sAdditionalText] Message#additionalText
 	 */
-	private _addMessage(oControlOrAControls: Control | Control[] | Column, sMessageText: string, sValidateFunctionId?: string | null | undefined, fullTarget?: string, sAdditionalText?: string): void {
+	private _addMessage(oControlOrAControls: Control | Control[] | Column, sMessageText: string, sValidateFunctionId?: string, fullTarget?: string, sAdditionalText?: string): void {
 		let oControl;
 		let aControls;
 		if (Array.isArray(oControlOrAControls)) {
@@ -1934,8 +1935,8 @@ export default class Validator extends BaseObject {
 	 * @param {sap.ui.core.ValueState} oValueState セットするステート
 	 * @param {string} sText セットするステートテキスト
 	 */
-	_setValueState(oControl, oValueState, sText) {
-		if (oControl.setValueState) {
+	private _setValueState(oControl: Control, oValueState: ValueState, sText: string): void {
+		if ("setValueState" in oControl && typeof oControl.setValueState === "function") {
 			oControl.setValueState(oValueState);
 			if (oValueState === ValueState.Error) {
 				this._markSetValueStateError(oControl);
@@ -1943,7 +1944,7 @@ export default class Validator extends BaseObject {
 				this._unmarkSetValueStateError(oControl);
 			}
 		}
-		if (oControl.setValueStateText) {
+		if ("setValueStateText" in oControl && typeof oControl.setValueStateText === "function") {
 			oControl.setValueStateText(sText);
 		}
 	};
@@ -1955,7 +1956,7 @@ export default class Validator extends BaseObject {
 	 * @param {sap.ui.core.Element} oElement エレメント
 	 * @returns {boolean} true: 本 Validator によりエラーステートをセットされている, false: セットされていない
 	 */
-	_isSetValueStateError(oElement) {
+	private _isSetValueStateError(oElement: Element): boolean {
 		return oElement.data(this._CUSTOM_DATA_KEY_FOR_IS_SET_VALUE_STATE_ERROR) === "true";
 	};
 
@@ -1965,7 +1966,7 @@ export default class Validator extends BaseObject {
 	 * @private
 	 * @param {sap.ui.core.Element} oElement エレメント
 	 */
-	_markSetValueStateError(oElement) {
+	private _markSetValueStateError(oElement: Element): void {
 		oElement.data(this._CUSTOM_DATA_KEY_FOR_IS_SET_VALUE_STATE_ERROR, "true");
 	};
 
@@ -1975,7 +1976,7 @@ export default class Validator extends BaseObject {
 	 * @private
 	 * @param {sap.ui.core.Element} oElement エレメント
 	 */
-	_unmarkSetValueStateError(oElement) {
+	private _unmarkSetValueStateError(oElement: Element): void {
 		oElement.data(this._CUSTOM_DATA_KEY_FOR_IS_SET_VALUE_STATE_ERROR, null);
 	};
 
@@ -1988,11 +1989,20 @@ export default class Validator extends BaseObject {
  * @namespace learnin.ui5.validator.Validator
  */
 class _ValidatorMessage extends Message {
-	targets;
-	validationErrorControlIds;
-	validateFunctionId;
+	targets: string[];
+	validationErrorControlIds: string[];
+	validateFunctionId: string;
 
-	constructor(mParameters) {
+	constructor(mParameters: {
+		message: string,
+		type: MessageType,
+		additionalText: string | undefined,
+		processor: MessageProcessor,
+		target: string | string[] | undefined,
+		fullTarget: string,
+		validationErrorControlIds: string[],
+		validateFunctionId: string
+	}) {
 		if (mParameters && Array.isArray(mParameters.target)) {
 			if (!Message.prototype.getTargets) {
 				// Message の target の配列サポートは UI5 1.79からなので、getTargets メソッドがない場合は、独自に配列を保持する。
@@ -2034,7 +2044,7 @@ class _ValidatorMessage extends Message {
 	 * 
 	 * @returns {string[]} The message targets; empty array if the message has no targets
 	 */
-	getTargets() {
+	getTargets(): string[] {
 		if (Message.prototype.getTargets) {
 			return Message.prototype.getTargets.call(this);
 		}
@@ -2049,7 +2059,7 @@ class _ValidatorMessage extends Message {
 	 * 
 	 * @returns {string[]} 検証エラーとなったコントロールのID
 	 */
-	getValidationErrorControlIds() {
+	getValidationErrorControlIds(): string[] {
 		return this.validationErrorControlIds;
 	};
 
@@ -2058,7 +2068,7 @@ class _ValidatorMessage extends Message {
 	 * 
 	 * @returns {string} 検証を行った関数のID
 	 */
-	getValidateFunctionId() {
+	getValidateFunctionId(): string {
 		return this.validateFunctionId;
 	};
 }
