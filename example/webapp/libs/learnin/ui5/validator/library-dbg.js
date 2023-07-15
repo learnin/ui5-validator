@@ -15,12 +15,12 @@
      *
      * @namespace
      * @name learnin.ui5.validator
-     * @version 0.2.2
+     * @version 0.3.0
      * @public
      */
     return sap.ui.getCore().initLibrary({
         name: "learnin.ui5.validator",
-        version: "0.2.2",
+        version: "0.3.0",
         dependencies: [
             "sap.ui.core",
             "sap.m"
