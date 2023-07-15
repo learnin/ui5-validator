@@ -1,0 +1,2 @@
+"use strict";sap.ui.define(["sap/m/Table"],function(e){class t{static getLabelText(t,n){const i=n.getParent();if(i instanceof e){const e=n.indexOfCell(t);if(e!==-1){const t=i.getColumns().filter(e=>e.getVisible())[e].getHeader();if("getText"in t&&typeof t.getText==="function"){return t.getText()}}}return undefined}}return t});
+//# sourceMappingURL=SapMTableUtil.js.map
