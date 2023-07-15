@@ -1,4 +1,6 @@
+import ColumnListItem from "sap/m/ColumnListItem";
 import Table from "sap/m/Table";
+import Control from "sap/ui/core/Control";
 
 export default class SapMTableUtil {
 
@@ -9,7 +11,7 @@ export default class SapMTableUtil {
      * @param {sap.m.ColumnListItem} oColumnListItem oControl の親
 	 * @returns {string} ラベルテキスト。ラベルが見つからない場合は undefined
 	 */
-	static getLabelText(oControl, oColumnListItem) {
+	static getLabelText(oControl: Control, oColumnListItem: ColumnListItem): string | undefined {
         const oTable = oColumnListItem.getParent();
         if (oTable instanceof Table) {
             const iColumnIndex = oColumnListItem.indexOfCell(oControl);
