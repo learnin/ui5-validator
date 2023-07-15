@@ -1,6 +1,7 @@
 /// <reference types="openui5" />
 /// <reference types="openui5" />
 /// <reference types="openui5" />
+/// <reference types="openui5" />
 declare module "learnin/ui5/validator/Validator" {
     import IconTabFilter from "sap/m/IconTabFilter";
     import BaseObject from "sap/ui/base/Object";
@@ -10,7 +11,9 @@ declare module "learnin/ui5/validator/Validator" {
     import MessageProcessor from "sap/ui/core/message/MessageProcessor";
     import FormContainer from "sap/ui/layout/form/FormContainer";
     import FormElement from "sap/ui/layout/form/FormElement";
+    import Column from "sap/ui/table/Column";
     import ResourceBundle from "sap/base/i18n/ResourceBundle";
+    import Event from "sap/ui/base/Event";
     type ValidateTargetControlOrContainer = Control | FormContainer | FormElement | IconTabFilter;
     type OptionParameterOfRegisterValidator = {
         isAttachValidator: boolean;
@@ -18,15 +21,39 @@ declare module "learnin/ui5/validator/Validator" {
         isGroupedTargetControls: boolean;
         controlsMoreAttachValidator: Control | Control[];
     };
+    type ValidatorInfo = {
+        validateFunctionId: string;
+        testFunction: Function;
+        messageTextOrMessageTexts: string | string[];
+        targetControlOrControls: Control | Control[];
+        validateFunction: (oValidatorInfo: ValidatorInfo) => boolean;
+        isGroupedTargetControls: boolean;
+        controlsMoreAttachValidator: Control | Control[];
+        isOriginalFunctionIdUndefined: boolean;
+        isAttachValidator: boolean;
+    };
     /**
      * スクロールイベントハンドラ等、頻繁に実行されるイベントを間引くためのラッパー
      *
-     * @param {Object} thisArg this 参照
-     * @param {function} fn イベントハンドラ
-     * @param {int} delay 遅延ミリ秒。最後に発生したイベントからこの期間を経過すると実行される
-     * @returns {function} イベントハンドラ
+     * @param {object} thisArg this 参照
+     * @param {Function} fn イベントハンドラ
+     * @param {number} delay 遅延ミリ秒。最後に発生したイベントからこの期間を経過すると実行される
+     * @returns {Function} イベントハンドラ
      */
-    const debounceEventHandler: (thisArg: any, fn: any, delay: any) => (oEvent: any) => void;
+    const debounceEventHandler: (thisArg: object, fn: Function, delay: number) => (oEvent: Event) => void;
+    /**
+     * T | T[] 型を T[] 型へ変換する
+     *
+     * @param valueOrValues
+     * @returns 引数が配列だった場合は引数そのまま、そうでない場合は引数を配列に入れたもの
+     */
+    const toArray: <T>(valueOrValues: T | T[]) => T[];
+    /**
+     * 引数が Column | Coulumn[] 型であることをアサーションするユーザ定義型ガード
+     *
+     * @param value アサーション対象
+     */
+    const assertColumnOrColumns: (value: any) => asserts value is Column | Column[];
     /**
      * バリデータ。
      * SAPUI5 の標準のバリデーションの仕組みは基本的にフォームフィールドの change 等のイベントで実行されるため
@@ -201,7 +228,7 @@ declare module "learnin/ui5/validator/Validator" {
          * @param {sap.ui.table.Column[]} aColumns
          * @param {string} sTableBindingPath
          * @param {number[]} aTableDataRowIndices
-         * @param {string} sMessageText
+         * @param {string|string[]} sMessageTextOrAMessageTexts
          * @param {string[]} aLabelTexts
          * @param {string} sValidateFunctionId
          */
@@ -412,13 +439,22 @@ declare module "learnin/ui5/validator/Validator" {
          * {@link sap.ui.core.message.MessageManager MessageManager} にメッセージを追加する。
          *
          * @private
-         * @param {sap.ui.core.Control|sap.ui.core.Control[]|Column} oControlOrAControls 検証エラーとなったコントロール
+         * @param {sap.ui.core.Control|sap.ui.core.Control[]} oControlOrAControls 検証エラーとなったコントロール
          * @param {string} sMessageText エラーメッセージ
          * @param {string} [sValidateFunctionId] {@link #registerValidator registerValidator} や {@link #registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は "" or undefined
-         * @param {string} [fullTarget] Message#fullTarget
-         * @param {string} [sAdditionalText] Message#additionalText
          */
         private _addMessage;
+        /**
+         * {@link sap.ui.core.message.MessageManager MessageManager} にメッセージを追加する。
+         *
+         * @private
+         * @param {Column} oColumn 検証エラーとなった Column
+         * @param {string} sMessageText エラーメッセージ
+         * @param {string} sValidateFunctionId {@link #registerValidator registerValidator} や {@link #registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は "" or undefined
+         * @param {string} fullTarget Message#fullTarget
+         * @param {string} sAdditionalText Message#additionalText
+         */
+        private _addMessageByColumn;
         /**
          * 引数のコントロールに {@link sap.ui.core.ValueState ValueState} と ValueStateText をセットする。
          *
