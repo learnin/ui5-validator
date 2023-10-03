@@ -1297,7 +1297,17 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         oControl = oControlOrAControls;
         aControls = [oControlOrAControls];
       }
-      sap.ui.getCore().getMessageManager().addMessages(new _ValidatorMessage({
+      const oMessageManager = sap.ui.getCore().getMessageManager();
+      const oMessageModel = oMessageManager.getMessageModel();
+      const sValidatorMessageName = _ValidatorMessage.getMetadata().getName();
+      const sControlId = oControl.getId();
+
+      // すでにメッセージがある場合は追加しない。
+      const existsMessage = oMessageModel.getProperty("/").some(oMsg => BaseObject.isA(oMsg, sValidatorMessageName) && oMsg.getValidationErrorControlIds().includes(sControlId) && oMsg.getValidateFunctionId() === sValidateFunctionId);
+      if (existsMessage) {
+        return;
+      }
+      oMessageManager.addMessages(new _ValidatorMessage({
         message: sMessageText,
         type: MessageType.Error,
         additionalText: this._getLabelText(oControl),
