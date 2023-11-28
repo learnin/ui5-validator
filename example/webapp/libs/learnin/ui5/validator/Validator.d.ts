@@ -112,9 +112,10 @@ declare module "learnin/ui5/validator/Validator" {
          *
          * @public
          * @param {ValidateTargetControlOrContainer} oTargetRootControl 検証対象のコントロールもしくはそれを含むコンテナ
+         * @param {boolean} [isDoConstraintsValidation] UI5 標準の constraints バリデーションも実行するか
          * @returns {boolean} true: valid, false: invalid
          */
-        validate(oTargetRootControl: ValidateTargetControlOrContainer): boolean;
+        validate(oTargetRootControl: ValidateTargetControlOrContainer, isDoConstraintsValidation?: boolean): boolean;
         /**
          * 引数のオブジェクトもしくはその配下のコントロールについて、本クラスにより追加されたメッセージを
          * {@link sap.ui.core.message.MessageManager MessageManager} から除去する。
@@ -191,6 +192,7 @@ declare module "learnin/ui5/validator/Validator" {
          *
          * @private
          * @param {ValidateTargetControlOrContainer} oTargetRootControl 検証対象のコントロールもしくはそれを含むコンテナ
+         * @param {boolean} isDoConstraintsValidation UI5 標準の constraints バリデーションも実行するか
          * @returns {boolean}　true: valid, false: invalid
          */
         private _validate;

@@ -1,6 +1,6 @@
 "use strict";
 
-sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox", "sap/m/ColumnListItem", "sap/m/IconTabFilter", "sap/m/Input", "sap/ui/base/Object", "sap/ui/core/Control", "sap/ui/core/Element", "sap/ui/core/LabelEnablement", "sap/ui/core/library", "sap/ui/core/message/ControlMessageProcessor", "sap/ui/core/message/Message", "sap/ui/model/json/JSONModel", "sap/ui/layout/form/FormContainer", "sap/ui/layout/form/FormElement", "sap/ui/table/Column", "sap/ui/table/Row", "sap/ui/table/Table", "sap/ui/model/ListBinding", "./SapMTableUtil"], function (deepExtend, uid, CheckBox, ColumnListItem, IconTabFilter, Input, BaseObject, Control, Element, LabelEnablement, sap_ui_core_library, ControlMessageProcessor, Message, JSONModel, FormContainer, FormElement, Column, Row, Table, ListBinding, __SapMTableUtil) {
+sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox", "sap/m/ColumnListItem", "sap/m/IconTabFilter", "sap/m/Input", "sap/ui/base/Object", "sap/ui/core/Control", "sap/ui/core/Element", "sap/ui/core/LabelEnablement", "sap/ui/core/library", "sap/ui/core/message/ControlMessageProcessor", "sap/ui/core/message/Message", "sap/ui/model/json/JSONModel", "sap/ui/layout/form/FormContainer", "sap/ui/layout/form/FormElement", "sap/ui/table/Column", "sap/ui/table/Row", "sap/ui/table/Table", "sap/ui/model/ListBinding", "sap/ui/model/SimpleType", "sap/ui/model/ValidateException", "./SapMTableUtil"], function (deepExtend, uid, CheckBox, ColumnListItem, IconTabFilter, Input, BaseObject, Control, Element, LabelEnablement, sap_ui_core_library, ControlMessageProcessor, Message, JSONModel, FormContainer, FormElement, Column, Row, Table, ListBinding, SimpleType, ValidateException, __SapMTableUtil) {
   function _interopRequireDefault(obj) {
     return obj && obj.__esModule && typeof obj.default !== "undefined" ? obj.default : obj;
   }
@@ -111,10 +111,11 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       }
     },
     validate: function _validate(oTargetRootControl) {
+      let isDoConstraintsValidation = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
       if (this._useFocusoutValidation) {
         this._attachValidator(oTargetRootControl);
       }
-      return this._validate(oTargetRootControl);
+      return this._validate(oTargetRootControl, isDoConstraintsValidation);
     },
     removeErrors: function _removeErrors(oTargetRootControl) {
       if (!oTargetRootControl) {
@@ -531,7 +532,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         }
       }
     },
-    _validate: function _validate2(oTargetRootControl) {
+    _validate: function _validate2(oTargetRootControl, isDoConstraintsValidation) {
       let isValid = true;
       const sTargetRootControlId = oTargetRootControl.getId();
       if (!((oTargetRootControl instanceof Control || oTargetRootControl instanceof FormContainer || oTargetRootControl instanceof FormElement || oTargetRootControl instanceof IconTabFilter) && oTargetRootControl.getVisible())) {
@@ -561,7 +562,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
               const aCellControls = aRows[i].getCells();
               if (aCellControls) {
                 for (let j = 0; j < aCellControls.length; j++) {
-                  if (!this._validate(aCellControls[j])) {
+                  if (!this._validate(aCellControls[j], isDoConstraintsValidation)) {
                     isValid = false;
                   }
                 }
@@ -573,8 +574,56 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         // sap.ui.core.LabelEnablement#isRequired は対象コントロール・エレメント自体の required 属性だけでなく、
         // labelFor 属性で紐づく Label や、sap.ui.layout.form.SimpleForm 内での対象コントロール・エレメントの直前の Label の required 属性まで見て判断してくれる。
         // （なお、ariaLabelledBy で参照される Label までは見てくれない）
-        if (oTargetRootControl instanceof Control && ("getEnabled" in oTargetRootControl && typeof oTargetRootControl.getEnabled === "function" && oTargetRootControl.getEnabled() || !("getEnabled" in oTargetRootControl)) && LabelEnablement.isRequired(oTargetRootControl)) {
-          isValid = this._validateRequired(oTargetRootControl);
+        if (oTargetRootControl instanceof Control && ("getEnabled" in oTargetRootControl && typeof oTargetRootControl.getEnabled === "function" && oTargetRootControl.getEnabled() || !("getEnabled" in oTargetRootControl))) {
+          if (LabelEnablement.isRequired(oTargetRootControl)) {
+            isValid = this._validateRequired(oTargetRootControl);
+          }
+          if (isDoConstraintsValidation && !this._isNullValue(oTargetRootControl)) {
+            const sPropertyName = this._resolveBindingPropertyName(oTargetRootControl);
+            const oBindingInfo = oTargetRootControl.getBindingInfo(sPropertyName);
+            if (oBindingInfo && "type" in oBindingInfo && oBindingInfo.type instanceof SimpleType) {
+              const oType = oBindingInfo.type;
+              try {
+                if (sPropertyName === "dateValue" && "getDateValue" in oTargetRootControl && typeof oTargetRootControl.getDateValue === "function") {
+                  oBindingInfo.type.validateValue(oTargetRootControl.getDateValue());
+                } else if (sPropertyName === "value" && "getValue" in oTargetRootControl && typeof oTargetRootControl.getValue === "function") {
+                  oBindingInfo.type.validateValue(oTargetRootControl.getValue());
+                } else if (sPropertyName === "selectedKey" && "getSelectedKey" in oTargetRootControl && typeof oTargetRootControl.getSelectedKey === "function") {
+                  oBindingInfo.type.validateValue(oTargetRootControl.getSelectedKey());
+                } else if (sPropertyName === "selectedKeys" && "getSelectedKeys" in oTargetRootControl && typeof oTargetRootControl.getSelectedKeys === "function") {
+                  oBindingInfo.type.validateValue(oTargetRootControl.getSelectedKeys());
+                } else if (sPropertyName === "selected" && "getSelected" in oTargetRootControl && typeof oTargetRootControl.getSelected === "function") {
+                  oBindingInfo.type.validateValue(oTargetRootControl.getSelected());
+                } else if (sPropertyName === "selectedIndex" && "getSelectedIndex" in oTargetRootControl && typeof oTargetRootControl.getSelectedIndex === "function") {
+                  oBindingInfo.type.validateValue(oTargetRootControl.getSelectedIndex());
+                } else if (sPropertyName === "selectedDates" && "getSelectedDates" in oTargetRootControl && typeof oTargetRootControl.getSelectedDates === "function") {
+                  oBindingInfo.type.validateValue(oTargetRootControl.getSelectedDates());
+                } else if (sPropertyName === "text" && "getText" in oTargetRootControl && typeof oTargetRootControl.getText === "function") {
+                  oBindingInfo.type.validateValue(oTargetRootControl.getText());
+                }
+              } catch (err) {
+                if (err instanceof ValidateException) {
+                  if ("message" in err && typeof err.message === "string") {
+                    sap.ui.getCore().getMessageManager().addMessages(new Message({
+                      message: err.message,
+                      type: MessageType.Error,
+                      additionalText: this._getLabelText(oTargetRootControl),
+                      processor: new ControlMessageProcessor(),
+                      target: this._resolveMessageTarget(oTargetRootControl),
+                      fullTarget: ""
+                    }));
+                    if ("setValueState" in oTargetRootControl && typeof oTargetRootControl.setValueState === "function") {
+                      oTargetRootControl.setValueState(ValueState.Error);
+                    }
+                    if ("setValueStateText" in oTargetRootControl && typeof oTargetRootControl.setValueStateText === "function") {
+                      oTargetRootControl.setValueStateText(err.message);
+                    }
+                    isValid = false;
+                  }
+                }
+              }
+            }
+          }
         }
         // sap.ui.table.Table や入力コントロールでなかった場合は、aggregation のコントロールを再帰的に検証する。
         for (let i = 0; i < this._aTargetAggregations.length; i++) {
@@ -586,13 +635,13 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
             for (let j = 0; j < aControlAggregation.length; j++) {
               const oControlAggregation = aControlAggregation[j];
               if (oControlAggregation instanceof Control || oControlAggregation instanceof FormContainer || oControlAggregation instanceof FormElement || oControlAggregation instanceof IconTabFilter) {
-                if (!this._validate(oControlAggregation)) {
+                if (!this._validate(oControlAggregation, isDoConstraintsValidation)) {
                   isValid = false;
                 }
               }
             }
           } else if (aControlAggregation instanceof Control || aControlAggregation instanceof FormContainer || aControlAggregation instanceof FormElement || aControlAggregation instanceof IconTabFilter) {
-            if (!this._validate(aControlAggregation)) {
+            if (!this._validate(aControlAggregation, isDoConstraintsValidation)) {
               isValid = false;
             }
           }
