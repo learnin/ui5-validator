@@ -32,6 +32,9 @@ declare module "learnin/ui5/validator/Validator" {
         isOriginalFunctionIdUndefined: boolean;
         isAttachValidator: boolean;
     };
+    type ValidateOption = {
+        isDoConstraintsValidation: boolean;
+    };
     /**
      * スクロールイベントハンドラ等、頻繁に実行されるイベントを間引くためのラッパー
      *
@@ -112,10 +115,10 @@ declare module "learnin/ui5/validator/Validator" {
          *
          * @public
          * @param {ValidateTargetControlOrContainer} oTargetRootControl 検証対象のコントロールもしくはそれを含むコンテナ
-         * @param {boolean} [isDoConstraintsValidation] UI5 標準の constraints バリデーションも実行するか
+         * @param {ValidateOption} [option] オプション
          * @returns {boolean} true: valid, false: invalid
          */
-        validate(oTargetRootControl: ValidateTargetControlOrContainer, isDoConstraintsValidation?: boolean): boolean;
+        validate(oTargetRootControl: ValidateTargetControlOrContainer, option?: ValidateOption): boolean;
         /**
          * 引数のオブジェクトもしくはその配下のコントロールについて、本クラスにより追加されたメッセージを
          * {@link sap.ui.core.message.MessageManager MessageManager} から除去する。
