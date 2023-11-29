@@ -20,6 +20,7 @@ import Row from "sap/ui/table/Row";
 import Table from "sap/ui/table/Table";
 import ListBinding from "sap/ui/model/ListBinding";
 import SimpleType from "sap/ui/model/SimpleType";
+import ParseException from "sap/ui/model/ParseException";
 import ValidateException from "sap/ui/model/ValidateException";
 import ManagedObject from "sap/ui/base/ManagedObject";
 import ResourceBundle from "sap/base/i18n/ResourceBundle";
@@ -50,6 +51,11 @@ type ValidatorInfo = {
 	isOriginalFunctionIdUndefined: boolean;
 	isAttachValidator: boolean;
 };
+
+// validate メソッドのオプション引数
+type ValidateOption = {
+	isDoConstraintsValidation: boolean;	// UI5 標準の constraints バリデーションも実行するか
+}
 
 /**
  * スクロールイベントハンドラ等、頻繁に実行されるイベントを間引くためのラッパー
@@ -241,14 +247,16 @@ export default class Validator extends BaseObject {
 	 *
 	 * @public
 	 * @param {ValidateTargetControlOrContainer} oTargetRootControl 検証対象のコントロールもしくはそれを含むコンテナ
-	 * @param {boolean} [isDoConstraintsValidation] UI5 標準の constraints バリデーションも実行するか
+	 * @param {ValidateOption} [option] オプション
 	 * @returns {boolean} true: valid, false: invalid
 	 */
-	validate(oTargetRootControl: ValidateTargetControlOrContainer, isDoConstraintsValidation: boolean = false): boolean {
+	validate(oTargetRootControl: ValidateTargetControlOrContainer, option: ValidateOption = {
+		isDoConstraintsValidation: false
+	}): boolean {
 		if (this._useFocusoutValidation) {
 			this._attachValidator(oTargetRootControl);
 		}
-		return this._validate(oTargetRootControl, isDoConstraintsValidation);
+		return this._validate(oTargetRootControl, option.isDoConstraintsValidation);
 	};
 
 	/**
@@ -946,40 +954,80 @@ export default class Validator extends BaseObject {
 					const oBindingInfo = oTargetRootControl.getBindingInfo(sPropertyName);
 					if (oBindingInfo && "type" in oBindingInfo && oBindingInfo.type instanceof SimpleType) {
 						const oType = oBindingInfo.type;
+						const oPropertyInfo = oTargetRootControl.getMetadata().getPropertyLikeSetting(sPropertyName);
+						let sInternalType = null;
+						if ("altTypes" in oPropertyInfo && Array.isArray(oPropertyInfo.altTypes)) {
+							sInternalType = oPropertyInfo.altTypes[0];
+						} else if ("type" in oPropertyInfo) {
+							sInternalType = oPropertyInfo.type;
+						}
 						try {
 							if (sPropertyName === "dateValue" && "getDateValue" in oTargetRootControl && typeof oTargetRootControl.getDateValue === "function") {
+								if (sInternalType) {
+									oBindingInfo.type.parseValue(oTargetRootControl.getDateValue(), sInternalType);
+								}
 								oBindingInfo.type.validateValue(oTargetRootControl.getDateValue());
 							} else if (sPropertyName === "value" && "getValue" in oTargetRootControl && typeof oTargetRootControl.getValue === "function") {
+								if (sInternalType) {
+									oBindingInfo.type.parseValue(oTargetRootControl.getValue(), sInternalType);
+								}
 								oBindingInfo.type.validateValue(oTargetRootControl.getValue());
 							} else if (sPropertyName === "selectedKey" && "getSelectedKey" in oTargetRootControl && typeof oTargetRootControl.getSelectedKey === "function") {
+								if (sInternalType) {
+									oBindingInfo.type.parseValue(oTargetRootControl.getSelectedKey(), sInternalType);
+								}
 								oBindingInfo.type.validateValue(oTargetRootControl.getSelectedKey());
 							} else if (sPropertyName === "selectedKeys" && "getSelectedKeys" in oTargetRootControl && typeof oTargetRootControl.getSelectedKeys === "function") {
+								if (sInternalType) {
+									oBindingInfo.type.parseValue(oTargetRootControl.getSelectedKeys(), sInternalType);
+								}
 								oBindingInfo.type.validateValue(oTargetRootControl.getSelectedKeys());
 							} else if (sPropertyName === "selected" && "getSelected" in oTargetRootControl && typeof oTargetRootControl.getSelected === "function") {
+								if (sInternalType) {
+									oBindingInfo.type.parseValue(oTargetRootControl.getSelected(), sInternalType);
+								}
 								oBindingInfo.type.validateValue(oTargetRootControl.getSelected());
 							} else if (sPropertyName === "selectedIndex" && "getSelectedIndex" in oTargetRootControl && typeof oTargetRootControl.getSelectedIndex === "function") {
+								if (sInternalType) {
+									oBindingInfo.type.parseValue(oTargetRootControl.getSelectedIndex(), sInternalType);
+								}
 								oBindingInfo.type.validateValue(oTargetRootControl.getSelectedIndex());
 							} else if (sPropertyName === "selectedDates" && "getSelectedDates" in oTargetRootControl && typeof oTargetRootControl.getSelectedDates === "function") {
+								if (sInternalType) {
+									oBindingInfo.type.parseValue(oTargetRootControl.getSelectedDates(), sInternalType);
+								}
 								oBindingInfo.type.validateValue(oTargetRootControl.getSelectedDates());
 							} else if (sPropertyName === "text" && "getText" in oTargetRootControl && typeof oTargetRootControl.getText === "function") {
+								if (sInternalType) {
+									oBindingInfo.type.parseValue(oTargetRootControl.getText(), sInternalType);
+								}
 								oBindingInfo.type.validateValue(oTargetRootControl.getText());
 							}
 						} catch (err) {
-							if (err instanceof ValidateException) {
+							if (err instanceof ParseException || err instanceof ValidateException) {
 								if ("message" in err && typeof err.message === "string") {
-									sap.ui.getCore().getMessageManager().addMessages(new Message({
-										message: err.message,
-										type: MessageType.Error,
-										additionalText: this._getLabelText(oTargetRootControl),
-										processor: new ControlMessageProcessor(),
-										target: this._resolveMessageTarget(oTargetRootControl),
-										fullTarget: ""
-									}));
-									if ("setValueState" in oTargetRootControl && typeof oTargetRootControl.setValueState === "function") {
-										oTargetRootControl.setValueState(ValueState.Error);
-									}
-									if ("setValueStateText" in oTargetRootControl && typeof oTargetRootControl.setValueStateText === "function") {
-										oTargetRootControl.setValueStateText(err.message);
+									// すでにメッセージがある場合は追加しない。
+									const oMessageManager = sap.ui.getCore().getMessageManager();
+									const sValidatorMessageName = _ValidatorMessage.getMetadata().getName();
+									const existsMessage = oMessageManager.getMessageModel().getProperty("/").some((oMsg: Message) =>
+										!BaseObject.isA(oMsg, sValidatorMessageName) &&
+										oMsg.getControlId() === oTargetRootControl.getId() &&
+										oMsg.getMessage() === err.message);
+									if (!existsMessage) {
+										oMessageManager.addMessages(new Message({
+											message: err.message,
+											type: MessageType.Error,
+											additionalText: this._getLabelText(oTargetRootControl),
+											processor: new ControlMessageProcessor(),
+											target: this._resolveMessageTarget(oTargetRootControl),
+											fullTarget: ""
+										}));
+										if ("setValueState" in oTargetRootControl && typeof oTargetRootControl.setValueState === "function") {
+											oTargetRootControl.setValueState(ValueState.Error);
+										}
+										if ("setValueStateText" in oTargetRootControl && typeof oTargetRootControl.setValueStateText === "function") {
+											oTargetRootControl.setValueStateText(err.message);
+										}
 									}
 									isValid = false;
 								}

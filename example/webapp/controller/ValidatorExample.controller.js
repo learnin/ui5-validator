@@ -262,7 +262,7 @@ sap.ui.define([
 			this._validator.removeErrors(oView);
 			this.removeAllTechnicalMessages();
 
-			if (!this._validator.validate(oView, true) || this.hasErrorMessages()) {
+			if (!this._validator.validate(oView, {isDoConstraintsValidation: true}) || this.hasErrorMessages()) {
 				this.showValidationErrorMessageDialog();
 				return;
 			}
