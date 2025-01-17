@@ -70,10 +70,10 @@
 								<Label text="Required FileUploader in Form" labelFor="requiredFileUploaderInForm" required="true" />
 								<u:FileUploader id="requiredFileUploaderInForm" value="{inForm>/requiredFileUploader}" sendXHR="true" />
 
-								<Label text="Required RatingIndicator in Form. Note: setValueState がないので赤くはならない。" labelFor="requiredRatingIndicatorInForm" required="true" />
+								<Label text="Required RatingIndicator in Form. Note: It does not turn red because there is no setValueState." labelFor="requiredRatingIndicatorInForm" required="true" />
 								<RatingIndicator id="requiredRatingIndicatorInForm" value="{inForm>/requiredRatingIndicator}" />
 
-								<Label text="Required SearchField in Form. Note: setValueState がないので赤くはならない。" labelFor="requiredSearchFieldInForm" required="true" />
+								<Label text="Required SearchField in Form. Note: It does not turn red because there is no setValueState." labelFor="requiredSearchFieldInForm" required="true" />
 								<SearchField id="requiredSearchFieldInForm" value="{inForm>/requiredSearchField}" />
 
 								<!-- Calendar は sap.ui.core.IFormContent を実装していないので SimpleForm 内に置くのはNG -->
