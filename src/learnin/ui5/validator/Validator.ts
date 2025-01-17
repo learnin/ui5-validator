@@ -147,7 +147,8 @@ export default class Validator extends BaseObject {
 		"pages",
 		"_grid",
 		"_page",
-		"cells"		// sap.m.Table -> items -> cells
+		"cells",		// sap.m.Table -> items -> cells
+		"contentAreas"
 	];
 	
 	private _mRegisteredValidator: Map<string, ValidatorInfo[]>;
