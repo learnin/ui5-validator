@@ -6,5 +6,5 @@ Validator library for OpenUI5 or SAPUI5.
 
 # Demo
 
-[demo](https://learnin.github.io/ui5-validator/demo/)
+![demo](https://learnin.github.io/ui5-validator/demo/)
 

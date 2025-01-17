@@ -24,8 +24,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
+          cache: 'npm'
       - name: Install Dependencies
-        run: cd ./example && npm install
+        run: cd ./example && npm ci
       - name: Build
         run: cd ./example && npm run build && cd .. && mkdir gh-pages && mv example/dist gh-pages/demo
       - name: Upload artifact
