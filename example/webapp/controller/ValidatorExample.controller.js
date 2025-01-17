@@ -66,7 +66,7 @@ sap.ui.define([
 				}]
 			}), "outForm");
 			this.setModel(new JSONModel({
-				requiredInput: ""
+				requiredInput: null
 			}), "withUI5Validator");
 			this.setModel(new JSONModel({
 				data: [{
