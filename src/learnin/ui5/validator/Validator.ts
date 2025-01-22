@@ -30,15 +30,27 @@ import Event from "sap/ui/base/Event";
 // デフォルトエクスポートクラス名が重複するものは別モジュールでインポートして対応している。
 import SapMTableUtil from "./SapMTableUtil";
 
-// 検証対象のコントロールもしくはそれを含むコンテナ
-type ValidateTargetControlOrContainer = Control | FormContainer | FormElement| IconTabFilter;
+/**
+ * 検証対象のコントロールもしくはそれを含むコンテナ
+ */
+export type ValidateTargetControlOrContainer = Control | FormContainer | FormElement| IconTabFilter;
 
-type OptionParameterOfRegisterValidator = {
+/**
+ * {@link Validator#registerValidator registerValidator}, {@link Validator#registerRequiredValidator registerRequiredValidator} メソッドのオプション引数
+ */
+export type OptionParameterOfRegisterValidator = {
 	isAttachValidator: boolean;
 	isAttachFocusoutValidationImmediately: boolean;
 	isGroupedTargetControls: boolean;
 	controlsMoreAttachValidator: Control | Control[];
 };
+
+/**
+ * validate メソッドのオプション引数
+ */
+export type ValidateOption = {
+	isDoConstraintsValidation: boolean;	// UI5 標準の constraints バリデーションも実行するか
+}
 
 type ValidatorInfo = {
 	validateFunctionId: string;
@@ -51,11 +63,6 @@ type ValidatorInfo = {
 	isOriginalFunctionIdUndefined: boolean;
 	isAttachValidator: boolean;
 };
-
-// validate メソッドのオプション引数
-type ValidateOption = {
-	isDoConstraintsValidation: boolean;	// UI5 標準の constraints バリデーションも実行するか
-}
 
 /**
  * スクロールイベントハンドラ等、頻繁に実行されるイベントを間引くためのラッパー
@@ -195,7 +202,6 @@ export default class Validator extends BaseObject {
 	 * 		useFocusoutValidation の値には関係なく attach される。
 	 */
 	/**
-	 * @constructor
 	 * @public
 	 * @param {Validator~Parameter} [mParameter] パラメータ
 	 */
@@ -206,7 +212,7 @@ export default class Validator extends BaseObject {
 	}) {
 		super();
 
-		// {@link #registerValidator registerValidator} {@link #registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数情報オブジェクト配列を保持するマップ。
+		// {@link Validator#registerValidator registerValidator} {@link Validator#registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数情報オブジェクト配列を保持するマップ。
 		this._mRegisteredValidator = new Map();
 
 		// フォーカスアウト時のバリデーション関数が attach されたコントロールIDを保持するマップ。型は Map<string, string[]>
@@ -362,7 +368,7 @@ export default class Validator extends BaseObject {
 	};
 
 	/**
-	 * {@link #registerValidator registerValidator} {@link #registerRequiredValidator registerRequiredValidator} の引数のコールバック関数の型
+	 * {@link Validator#registerValidator registerValidator}, {@link Validator#registerRequiredValidator registerRequiredValidator} の引数のコールバック関数の型
 	 *
 	 * @public
 	 * @callback testFunction
@@ -378,7 +384,7 @@ export default class Validator extends BaseObject {
 	 * @param {testFunction} fnTest oControlValidateBefore の検証後に実行される検証用の関数
 	 * @param {string|string[]} sMessageTextOrAMessageTexts 検証エラーメッセージまたはその配列
 	 * @param {sap.ui.core.Control|sap.ui.core.Control[]} oTargetControlOrAControls 検証対象のコントロールまたはその配列
-	 * @param {sap.ui.core.Control} oControlValidateBefore {@link #validate validate} oControlValidateBefore の検証後に fnTest が実行される。fnTest の実行順を指定するためのもの
+	 * @param {sap.ui.core.Control} oControlValidateBefore {@link Validator#validate validate} oControlValidateBefore の検証後に fnTest が実行される。fnTest の実行順を指定するためのもの
 	 * @param {Object} [mParameter] オプションパラメータ
 	 * @returns {Validator} Reference to this in order to allow method chaining
 	 */
@@ -674,7 +680,7 @@ export default class Validator extends BaseObject {
 	 * @param {string} [sValidateFunctionId] fnTest を識別するための任意のID。省略時は自動生成される
 	 * @param {testFunction} fnTest oControlValidateBefore の検証後に実行される検証用の関数
 	 * @param {sap.ui.core.Control|sap.ui.core.Control[]} oTargetControlOrAControls 検証対象のコントロールまたはその配列
-	 * @param {sap.ui.core.Control} oControlValidateBefore {@link #validate validate} oControlValidateBefore の検証後に fnTest が実行される。fnTest の実行順を指定するためのもの
+	 * @param {sap.ui.core.Control} oControlValidateBefore {@link Validator#validate validate} oControlValidateBefore の検証後に fnTest が実行される。fnTest の実行順を指定するためのもの
 	 * @param {Object} [mParameter] オプションパラメータ
 	 * @returns {Validator} Reference to this in order to allow method chaining
 	 */
@@ -734,7 +740,7 @@ export default class Validator extends BaseObject {
 	};
 
 	/**
-	 * {@link #registerValidator registerValidator} {@link #registerRequiredValidator registerRequiredValidator} で登録されている関数を登録解除する。
+	 * {@link Validator#registerValidator registerValidator}, {@link Validator#registerRequiredValidator registerRequiredValidator} で登録されている関数を登録解除する。
 	 * 
 	 * @public
 	 * @param {string} sValidateFunctionId validateFunction を識別するための ID
@@ -1288,7 +1294,7 @@ export default class Validator extends BaseObject {
 	};
 
 	/**
-	 * oControl に {@link #registerValidator registerValidator} や {@link #registerRequiredValidator registerRequiredValidator} で登録されたフォーカスアウトバリデータを attach する。
+	 * oControl に {@link Validator#registerValidator registerValidator} や {@link Validator#registerRequiredValidator registerRequiredValidator} で登録されたフォーカスアウトバリデータを attach する。
 	 * 
 	 * @private
 	 * @param {sap.ui.core.Control|sap.ui.core.Control[]} oControlOrAControls コントロールまたはコントロール配列
@@ -1363,7 +1369,7 @@ export default class Validator extends BaseObject {
 	 * 
 	 * @private
 	 * @param {string} sControlId コントロールID
-	 * @param {string} sValidateFunctionId {@link #registerValidator registerValidator} や {@link #registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は ""
+	 * @param {string} sValidateFunctionId {@link Validator#registerValidator registerValidator} や {@link Validator#registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は ""
 	 * @returns {boolean} true: フォーカスアウトバリデータを attach 済み, false: フォーカスアウトバリデータを attach 済みでない
 	 */
 	private _isAttachedValidator(sControlId: string, sValidateFunctionId: string): boolean {
@@ -1379,7 +1385,7 @@ export default class Validator extends BaseObject {
 	 * 
 	 * @private
 	 * @param {sap.ui.core.Control} oControl コントロール
-	 * @param {string} sValidateFunctionId {@link #registerValidator registerValidator} や {@link #registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は ""
+	 * @param {string} sValidateFunctionId {@link Validator#registerValidator registerValidator} や {@link Validator#registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は ""
 	 * @param {object|string} アタッチする関数に渡すデータ
 	 */
 	private _internalAttachValidator(oControl: Control, sValidateFunctionId: string, oData: object | string): void {
@@ -1471,7 +1477,7 @@ export default class Validator extends BaseObject {
 	};
 
 	/**
-	 * {@link #registerValidator registerValidator} や {@link #registerRequiredValidator registerRequiredValidator} で登録されたフォーカスアウトバリデータ関数。
+	 * {@link Validator#registerValidator registerValidator} や {@link Validator#registerRequiredValidator registerRequiredValidator} で登録されたフォーカスアウトバリデータ関数。
 	 * 1つのコントロールに複数のバリデータを登録した場合でもコントロールにアタッチするイベントハンドラ関数は常にこの _registeredvalidator のみとなり、
 	 * 引数の oData がバリデータ毎に異なる値になることでバリデータの内容に応じたバリデーションを行う。
 	 * 
@@ -1725,7 +1731,7 @@ export default class Validator extends BaseObject {
 	 * 
 	 * @private
 	 * @param {sap.ui.core.Control} oControl 対象のコントロール
-	 * @param {string} sValidateFunctionId {@link #registerValidator registerValidator} や {@link #registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は ""
+	 * @param {string} sValidateFunctionId {@link Validator#registerValidator registerValidator} や {@link Validator#registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は ""
 	 */
 	private _removeMessageAndValueState(oControl: Control, sValidateFunctionId: string): void {
 		const oMessageManager = sap.ui.getCore().getMessageManager();
@@ -2050,7 +2056,7 @@ export default class Validator extends BaseObject {
 	 * @private
 	 * @param {sap.ui.core.Control|sap.ui.core.Control[]} oControlOrAControls 検証エラーとなったコントロール
 	 * @param {string} sMessageText エラーメッセージ
-	 * @param {string} [sValidateFunctionId] {@link #registerValidator registerValidator} や {@link #registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は "" or undefined
+	 * @param {string} [sValidateFunctionId] {@link Validator#registerValidator registerValidator} や {@link Validator#registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は "" or undefined
 	 */
 	private _addMessage(oControlOrAControls: Control | Control[], sMessageText: string, sValidateFunctionId?: string): void {
 		let oControl;
@@ -2094,7 +2100,7 @@ export default class Validator extends BaseObject {
 	 * @private
 	 * @param {Column} oColumn 検証エラーとなった Column
 	 * @param {string} sMessageText エラーメッセージ
-	 * @param {string} sValidateFunctionId {@link #registerValidator registerValidator} や {@link #registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は "" or undefined
+	 * @param {string} sValidateFunctionId {@link Validator#registerValidator registerValidator} や {@link Validator#registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は "" or undefined
 	 * @param {string} fullTarget Message#fullTarget
 	 * @param {string} sAdditionalText Message#additionalText
 	 */
