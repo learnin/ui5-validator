@@ -33,6 +33,10 @@ SAPUI5/OpenUI5（以降、UI5と記述）ではバリデーション機能が提
 
 [デモ](https://learnin.github.io/ui5-validator/demo/)
 
+# API ドキュメント
+
+[API ドキュメント](https://learnin.github.io/ui5-validator/api/)
+
 # セットアップ
 
 ```bash
