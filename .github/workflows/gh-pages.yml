@@ -25,10 +25,19 @@ jobs:
         with:
           node-version: 18
           cache: 'npm'
+
       - name: Install Dependencies
-        run: cd ./example && npm ci
+        run: npm ci
       - name: Build
+        run: npm run build
+
+      - name: Install Dependencies for demo app
+        run: cd ./example && npm ci && rm -rf webapp/libs/learnin && cp -r ../dist/resources/learnin webapp/libs/ && cd ..
+      - name: Build demo app
         run: cd ./example && npm run build && cd .. && mkdir gh-pages && mv example/dist gh-pages/demo
+
+      - name: Generate API document
+        run: npm run doc && mv docs gh-pages/api
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

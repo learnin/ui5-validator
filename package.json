@@ -7,7 +7,8 @@
     "defaults"
   ],
   "scripts": {
-    "build": "tsc --noEmit && ui5 build --clean-dest"
+    "build": "tsc --noEmit && ui5 build --clean-dest",
+    "doc": "typedoc --plugin typedoc-plugin-rename-defaults src/learnin/ui5/validator/Validator.ts"
   },
   "files": [
     "dist",
@@ -30,6 +31,8 @@
   "devDependencies": {
     "@types/openui5": "1.108.0",
     "@ui5/cli": "3.1.2",
+    "typedoc": "^0.27.6",
+    "typedoc-plugin-rename-defaults": "^0.7.2",
     "typescript": "5.0.4",
     "ui5-tooling-transpile": "0.7.12"
   }
