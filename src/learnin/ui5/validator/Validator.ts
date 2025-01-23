@@ -1837,28 +1837,28 @@ export default class Validator extends BaseObject {
 			aControls.push(oControlOrAControls);
 		}
 		const aTargets = aControls.map(oControl => {
-			if (oControl.getBinding("dateValue")) {
+			if (oControl.getBindingInfo("dateValue")) {
 				return oControl.getId() + "/dateValue";
 			}
-			if (oControl.getBinding("value")) {
+			if (oControl.getBindingInfo("value")) {
 				return oControl.getId() + "/value";
 			}
-			if (oControl.getBinding("selectedKey")) {
+			if (oControl.getBindingInfo("selectedKey")) {
 				return oControl.getId() + "/selectedKey";
 			}
-			if (oControl.getBinding("selectedKeys")) {
+			if (oControl.getBindingInfo("selectedKeys")) {
 				return oControl.getId() + "/selectedKeys";
 			}
-			if (oControl.getBinding("selected")) {
+			if (oControl.getBindingInfo("selected")) {
 				return oControl.getId() + "/selected";
 			}
-			if (oControl.getBinding("selectedIndex")) {
+			if (oControl.getBindingInfo("selectedIndex")) {
 				return oControl.getId() + "/selectedIndex";
 			}
-			if (oControl.getBinding("selectedDates")) {
+			if (oControl.getBindingInfo("selectedDates")) {
 				return oControl.getId() + "/selectedDates";
 			}
-			if (oControl.getBinding("text")) {
+			if (oControl.getBindingInfo("text")) {
 				return oControl.getId() + "/text";
 			}
 			return undefined;
@@ -1877,28 +1877,28 @@ export default class Validator extends BaseObject {
 	 * @returns {string|undefined} バインドされているプロパティ名
 	 */
 	private _resolveBindingPropertyName(oControl: Control): string | undefined {
-		if (oControl.getBinding("dateValue")) {
+		if (oControl.getBindingInfo("dateValue")) {
 			return "dateValue";
 		}
-		if (oControl.getBinding("value")) {
+		if (oControl.getBindingInfo("value")) {
 			return "value";
 		}
-		if (oControl.getBinding("selectedKey")) {
+		if (oControl.getBindingInfo("selectedKey")) {
 			return "selectedKey";
 		}
-		if (oControl.getBinding("selectedKeys")) {
+		if (oControl.getBindingInfo("selectedKeys")) {
 			return "selectedKeys";
 		}
-		if (oControl.getBinding("selected")) {
+		if (oControl.getBindingInfo("selected")) {
 			return "selected";
 		}
-		if (oControl.getBinding("selectedIndex")) {
+		if (oControl.getBindingInfo("selectedIndex")) {
 			return "selectedIndex";
 		}
-		if (oControl.getBinding("selectedDates")) {
+		if (oControl.getBindingInfo("selectedDates")) {
 			return "selectedDates";
 		}
-		if (oControl.getBinding("text")) {
+		if (oControl.getBindingInfo("text")) {
 			return "text";
 		}
 		return undefined;

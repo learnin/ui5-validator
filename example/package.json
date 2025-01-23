@@ -6,6 +6,7 @@
 	"author": "Manabu Inoue",
 	"license": "Apache-2.0",
 	"scripts": {
+		"start-dev": "ui5 serve -o index.html",
 		"start": "cpx \"node_modules/@learnin/ui5-validator/dist/resources/**/*\" webapp/libs -Cv && ui5 serve -o index.html",
 		"build": "rimraf dist && ui5 build -a --include-task=generateManifestBundle generateCachebusterInfo --exclude-dependency=ui5-lib-learnin.ui5.validator",
 		"it": "cpx \"node_modules/@learnin/ui5-validator/dist/resources/**/*\" webapp/libs -Cv && ui5 serve -o test/integration/opaTests.qunit.html"

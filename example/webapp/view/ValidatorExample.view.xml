@@ -23,7 +23,10 @@
 								<!-- SimpleForm 内の場合、labelFor プロパティがない Label でも Label の required により必須チェックが可能 -->
 								<!-- 入力系コントロールには required プロパティがないものもあるので、基本的には SimpleForm を使った方が楽 -->
 								<Label text="Required label in Form" required="true" />
-								<Input value="{inForm>/requiredLabelInput}" />
+								<Input value="{
+									path: '{inForm>/requiredLabelInput}',
+									type: 'sap.ui.model.type.String'
+								}" />
 
 								<Label text="Required Input in Form" />
 								<Input value="{inForm>/requiredInput}" required="true" />
@@ -49,10 +52,24 @@
 								<CheckBox text="text1" selected="{inForm>/selectedOfRequiredCheckBox}" />
 
 								<Label text="Required DatePicker in Form" />
-								<DatePicker dateValue="{inForm>/requiredDatePicker}" required="true"/>
+								<DatePicker
+									value="{
+										path: '{inForm>/requiredDatePicker}',
+										type: 'sap.ui.model.type.Date'
+									}"
+									valueFormat="yyyy/MM/dd"
+									displayFormat="yyyy/MM/dd"
+									required="true"/>
 
 								<Label text="Required TimePicker in Form" />
-								<TimePicker dateValue="{inForm>/requiredTimePicker}" required="true"/>
+								<TimePicker
+									value="{
+										path: '{inForm>/requiredTimePicker}',
+										type: 'sap.ui.model.type.Time'
+									}"
+									valueFormat="HH:mm:ss"
+									displayFormat="HH:mm:ss"
+									required="true"/>
 
 								<Label text="Required ComboBox in Form" />
 								<ComboBox items="{inForm>/requiredComboBox}" selectedKey="{inForm>/selectedKeyOfRequiredComboBox}" required="true">
@@ -188,9 +205,25 @@
 						<uxap:ObjectPageSubSection>
 							<forms:SimpleForm layout="ColumnLayout" columnsM="2" columnsL="3" columnsXL="4" editable="true">
 								<Label text="{i18n>label.startDate}" />
-								<DatePicker id="fromDate" dateValue="{correlation>/fromDate}" required="true" />
+								<DatePicker
+									id="fromDate"
+									value="{
+										path: '{correlation>/fromDate}',
+										type: 'sap.ui.model.type.Date'
+									}"
+									valueFormat="yyyy-MM-dd"
+									displayFormat="yyyy/MM/dd"
+									required="true" />
 								<Label text="{i18n>label.endDate}" />
-								<DatePicker id="toDate" dateValue="{correlation>/toDate}" required="true" />
+								<DatePicker
+									id="toDate"
+									value="{
+										path: '{correlation>/toDate}',
+										type: 'sap.ui.model.type.Date'
+									}"
+									valueFormat="yyyy-MM-dd"
+									displayFormat="yyyy/MM/dd"
+									required="true" />
 							</forms:SimpleForm>
 
 							<VBox>
