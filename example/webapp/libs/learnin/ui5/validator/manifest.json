@@ -4,7 +4,7 @@
         "id": "learnin.ui5.validator",
         "type": "library",
         "applicationVersion": {
-            "version": "0.3.3"
+            "version": "0.3.6"
         },
         "title": "UI5 Validator"
     },

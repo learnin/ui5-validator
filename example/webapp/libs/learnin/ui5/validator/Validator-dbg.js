@@ -77,8 +77,9 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       this.RESOURCE_BUNDLE_KEY_REQUIRED_INPUT = "learnin.ui5.validator.Validator.message.requiredInput";
       this.RESOURCE_BUNDLE_KEY_REQUIRED_SELECT = "learnin.ui5.validator.Validator.message.requiredSelect";
       this._CUSTOM_DATA_KEY_FOR_IS_SET_VALUE_STATE_ERROR = "learnin.ui5.validator.Validator.IS_SET_VALUE_STATE_ERROR";
-      this._aTargetAggregations = ["items", "content", "form", "formContainers", "formElements", "fields", "sections", "subSections", "app", "pages", "_grid", "_page", "cells" // sap.m.Table -> items -> cells
-      ];
+      this._aTargetAggregations = ["items", "content", "form", "formContainers", "formElements", "fields", "sections", "subSections", "app", "pages", "_grid", "_page", "cells",
+      // sap.m.Table -> items -> cells
+      "contentAreas"];
       this._mInvalidTableRowCols = new Map();
       this._mRegisteredValidator = new Map();
 

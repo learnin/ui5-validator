@@ -5,10 +5,9 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<meta
 		http-equiv="Content-Security-Policy"
-		content="default-src 'self' https://openui5.hana.ondemand.com;
-			style-src 'self' 'unsafe-inline' https://openui5.hana.ondemand.com;
-			script-src 'self' 'unsafe-eval' https://openui5.hana.ondemand.com">
-	<link href="/resources/img/favicon.ico" rel="shortcut icon" type="image/x-icon" />
+		content="default-src 'self';
+			style-src 'self';
+			script-src 'self'">
 	<title>Example application of @learnin/ui5-validator</title>
 </head>
 <body class="sapUiBody">
@@ -20,7 +19,7 @@
 	</div>
 	<script
 		id="sap-ui-bootstrap"
-		src="https://openui5.hana.ondemand.com/1.96.37/resources/sap-ui-core.js"
+		src="/resources/sap-ui-core.js"
 		data-sap-ui-theme="sap_fiori_3"
 		data-sap-ui-resourceroots='{
 			"learnin.ui5.validator.example": "./"
