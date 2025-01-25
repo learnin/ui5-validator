@@ -67,10 +67,10 @@ type ValidatorInfo = {
 /**
  * スクロールイベントハンドラ等、頻繁に実行されるイベントを間引くためのラッパー
  * 
- * @param {object} thisArg this 参照
- * @param {Function} fn イベントハンドラ
- * @param {number} delay 遅延ミリ秒。最後に発生したイベントからこの期間を経過すると実行される
- * @returns {Function} イベントハンドラ
+ * @param thisArg - this 参照
+ * @param fn - イベントハンドラ
+ * @param delay - 遅延ミリ秒。最後に発生したイベントからこの期間を経過すると実行される
+ * @returns イベントハンドラ
  */
 const debounceEventHandler = (thisArg: object, fn: Function, delay: number) => {
 	let timeoutId: number;
@@ -90,7 +90,7 @@ const debounceEventHandler = (thisArg: object, fn: Function, delay: number) => {
 /**
  * T | T[] 型を T[] 型へ変換する
  * 
- * @param valueOrValues 
+ * @param valueOrValues - 値または値の配列
  * @returns 引数が配列だった場合は引数そのまま、そうでない場合は引数を配列に入れたもの
  */
 const toArray = <T>(valueOrValues: T | T[]) => {
@@ -103,7 +103,7 @@ const toArray = <T>(valueOrValues: T | T[]) => {
 /**
  * 引数が Column | Coulumn[] 型であることをアサーションするユーザ定義型ガード
  * 
- * @param value アサーション対象
+ * @param value - アサーション対象
  */
 const assertColumnOrColumns: (value: any) => asserts value is Column | Column[] = (value) => {
 	if (value === null || value === undefined) {
@@ -188,22 +188,20 @@ export default class Validator extends BaseObject {
 	private _useFocusoutValidation;
 
 	/**
-	 * コンストラクタのオプションパラメータ
+	 * コンストラクタ
 	 * 
-	 * @typedef {Object} Validator~Parameter
-	 * @property {ResourceBundle} resourceBundle i18n リソースバンドルクラス
-	 * @property {string|string[]} targetAggregations バリデーション対象として追加する、コントロールの aggregation 名
-	 * @property {boolean} useFocusoutValidation validate メソッド実行時に isRequired が true のコントロールおよび、registerValidator, registerRequiredValidator の対象コントロールに
-	 * 		フォーカスアウト時のバリデーション関数を attach するか。
-	 * 		挙動としては以下のいずれかとなる。
-	 * 		true （デフォルト）の場合：1度 validate するとフォーカスアウトでバリデーションが効くようになる（正しい値を入れてフォーカスアウトしてエラーが消えてもまた不正にしてフォーカスアウトするとエラーになる）
-	 * 		false の場合：1度 validate すると removeErrors するまでエラーは残りっぱなしとなる
+	 * @param mParameter - パラメータ
+	 * @param mParameter.resourceBundle - i18n リソースバンドルクラス
+	 * @param mParameter.targetAggregations - バリデーション対象として追加する、コントロールの aggregation 名
+	 * @param mParameter.useFocusoutValidation - validate メソッド実行時に isRequired が true のコントロールおよび、registerValidator, registerRequiredValidator の対象コントロールに
+	 * フォーカスアウト時のバリデーション関数を attach するか。\
+	 * 		挙動としては以下のいずれかとなる。\
+	 * 		true （デフォルト）の場合：1度 validate するとフォーカスアウトでバリデーションが効くようになる（正しい値を入れてフォーカスアウトしてエラーが消えてもまた不正にしてフォーカスアウトするとエラーになる）\
+	 * 		false の場合：1度 validate すると removeErrors するまでエラーは残りっぱなしとなる\
 	 * 		ただし、registerValidator, registerRequiredValidator が isAttachFocusoutValidationImmediately: true で実行された場合にはそのバリデーション関数は
 	 * 		useFocusoutValidation の値には関係なく attach される。
-	 */
-	/**
+	 * 
 	 * @public
-	 * @param {Validator~Parameter} [mParameter] パラメータ
 	 */
 	constructor(mParameter?: {
 		resourceBundle: ResourceBundle;
@@ -252,10 +250,11 @@ export default class Validator extends BaseObject {
 	/**
 	 * 引数のオブジェクトもしくはその配下のコントロールのバリデーションを行う。
 	 *
+	 * @param oTargetRootControl - 検証対象のコントロールもしくはそれを含むコンテナ
+	 * @param [option] - オプション
+	 * @returns true: valid, false: invalid
+	 * 
 	 * @public
-	 * @param {ValidateTargetControlOrContainer} oTargetRootControl 検証対象のコントロールもしくはそれを含むコンテナ
-	 * @param {ValidateOption} [option] オプション
-	 * @returns {boolean} true: valid, false: invalid
 	 */
 	validate(oTargetRootControl: ValidateTargetControlOrContainer, option: ValidateOption = {
 		isDoConstraintsValidation: false
@@ -268,11 +267,12 @@ export default class Validator extends BaseObject {
 
 	/**
 	 * 引数のオブジェクトもしくはその配下のコントロールについて、本クラスにより追加されたメッセージを
-	 * {@link sap.ui.core.message.MessageManager MessageManager} から除去する。
+	 * {@link sap.ui.core.message.MessageManager | MessageManager} から除去する。
 	 * その結果、該当コントロールにメッセージがなくなった場合は、{@link sap.ui.core.ValueState ValueState} もクリアする。
 	 *
+	 * @param oTargetRootControl - 検証対象のコントロールもしくはそれを含むコンテナ
+	 * 
 	 * @public
-	 * @param {ValidateTargetControlOrContainer} oTargetRootControl 検証対象のコントロールもしくはそれを含むコンテナ
 	 */
 	removeErrors(oTargetRootControl: ValidateTargetControlOrContainer): void {
 		if (!oTargetRootControl) {
@@ -326,8 +326,9 @@ export default class Validator extends BaseObject {
 	/**
 	 * 引数のオブジェクトもしくはその配下のコントロールについて、本クラスにより attach された関数を detach する。
 	 * 
+	 * @param oTargetRootControl - 対象のコントロールもしくはそれを含むコンテナ
+	 * 
 	 * @public
-	 * @param {ValidateTargetControlOrContainer} oTargetRootControl 対象のコントロールもしくはそれを含むコンテナ
 	 */
 	removeAttachedValidators(oTargetRootControl: ValidateTargetControlOrContainer): void {
 		if (!oTargetRootControl) {
@@ -379,14 +380,15 @@ export default class Validator extends BaseObject {
 	 * oControlValidateBefore の検証後に実行する関数を登録する。
 	 * すでに oControlValidateBefore に sValidateFunctionId の関数が登録されている場合は関数を上書きする。
 	 * 
+	 * @param [sValidateFunctionId] - fnTest を識別するための任意のID。省略時は自動生成される
+	 * @param {testFunction} fnTest - oControlValidateBefore の検証後に実行される検証用の関数
+	 * @param sMessageTextOrAMessageTexts - 検証エラーメッセージまたはその配列
+	 * @param oTargetControlOrAControls - 検証対象のコントロールまたはその配列
+	 * @param oControlValidateBefore - {@link Validator#validate | validate} oControlValidateBefore の検証後に fnTest が実行される。fnTest の実行順を指定するためのもの
+	 * @param [mParameter] - オプションパラメータ
+	 * @returns Reference to this in order to allow method chaining
+	 * 
 	 * @public
-	 * @param {string} [sValidateFunctionId] fnTest を識別するための任意のID。省略時は自動生成される
-	 * @param {testFunction} fnTest oControlValidateBefore の検証後に実行される検証用の関数
-	 * @param {string|string[]} sMessageTextOrAMessageTexts 検証エラーメッセージまたはその配列
-	 * @param {sap.ui.core.Control|sap.ui.core.Control[]} oTargetControlOrAControls 検証対象のコントロールまたはその配列
-	 * @param {sap.ui.core.Control} oControlValidateBefore {@link Validator#validate validate} oControlValidateBefore の検証後に fnTest が実行される。fnTest の実行順を指定するためのもの
-	 * @param {Object} [mParameter] オプションパラメータ
-	 * @returns {Validator} Reference to this in order to allow method chaining
 	 */
 	// oTargetControlOrAControls が配列で sMessageTextOrAMessageTexts も配列で要素数が同じはOK
 	// oTargetControlOrAControls が配列で sMessageTextOrAMessageTexts がObjectもOK
@@ -676,13 +678,14 @@ export default class Validator extends BaseObject {
 	 * oControlValidateBefore の検証後に実行する必須チェック関数を登録する。
 	 * すでに oControlValidateBefore に sValidateFunctionId の関数が登録されている場合は関数を上書きする。
 	 * 
+	 * @param [sValidateFunctionId] - fnTest を識別するための任意のID。省略時は自動生成される
+	 * @param {testFunction} fnTest - oControlValidateBefore の検証後に実行される検証用の関数
+	 * @param oTargetControlOrAControls - 検証対象のコントロールまたはその配列
+	 * @param oControlValidateBefore - {@link Validator#validate | validate} oControlValidateBefore の検証後に fnTest が実行される。fnTest の実行順を指定するためのもの
+	 * @param [mParameter] - オプションパラメータ
+	 * @returns Reference to this in order to allow method chaining
+	 * 
 	 * @public
-	 * @param {string} [sValidateFunctionId] fnTest を識別するための任意のID。省略時は自動生成される
-	 * @param {testFunction} fnTest oControlValidateBefore の検証後に実行される検証用の関数
-	 * @param {sap.ui.core.Control|sap.ui.core.Control[]} oTargetControlOrAControls 検証対象のコントロールまたはその配列
-	 * @param {sap.ui.core.Control} oControlValidateBefore {@link Validator#validate validate} oControlValidateBefore の検証後に fnTest が実行される。fnTest の実行順を指定するためのもの
-	 * @param {Object} [mParameter] オプションパラメータ
-	 * @returns {Validator} Reference to this in order to allow method chaining
 	 */
 	registerRequiredValidator(sValidateFunctionId: string, fnTest: Function, oTargetControlOrAControls: Control | Control[], oControlValidateBefore: Control, mParameter?: OptionParameterOfRegisterValidator): Validator
 	registerRequiredValidator(fnTest: Function, oTargetControlOrAControls: Control | Control[], oControlValidateBefore: Control, mParameter?: OptionParameterOfRegisterValidator): Validator
@@ -740,12 +743,13 @@ export default class Validator extends BaseObject {
 	};
 
 	/**
-	 * {@link Validator#registerValidator registerValidator}, {@link Validator#registerRequiredValidator registerRequiredValidator} で登録されている関数を登録解除する。
+	 * {@link Validator#registerValidator | registerValidator}, {@link Validator#registerRequiredValidator | registerRequiredValidator} で登録されている関数を登録解除する。
+	 * 
+	 * @param sValidateFunctionId - validateFunction を識別するための ID
+	 * @param oControlValidateBefore - コントロール
+	 * @returns Reference to this in order to allow method chaining
 	 * 
 	 * @public
-	 * @param {string} sValidateFunctionId validateFunction を識別するための ID
-	 * @param {sap.ui.core.Control} oControlValidateBefore コントロール
-	 * @returns {Validator} Reference to this in order to allow method chaining
 	 */
 	unregisterValidator(sValidateFunctionId: string, oControlValidateBefore: Control): Validator {
 		const sControlId = oControlValidateBefore.getId();
@@ -766,8 +770,7 @@ export default class Validator extends BaseObject {
 	/**
 	 * 引数のオブジェクトもしくはその配下のコントロールにバリデータ関数を attach する。
 	 *
-	 * @private
-	 * @param {ValidateTargetControlOrContainer} oTargetRootControl バリデータ関数を attach するコントロールもしくはそれを含むコンテナ
+	 * @param oTargetRootControl - バリデータ関数を attach するコントロールもしくはそれを含むコンテナ
 	 */
 	private _attachValidator(oTargetRootControl: ValidateTargetControlOrContainer): void {
 		// 非表示のコントロールも後で表示される可能性が想定されるため、処理対象とする
@@ -897,10 +900,9 @@ export default class Validator extends BaseObject {
 	/**
 	 * 引数のオブジェクトとその配下のコントロールのバリデーションを行う。
 	 *
-	 * @private
-	 * @param {ValidateTargetControlOrContainer} oTargetRootControl 検証対象のコントロールもしくはそれを含むコンテナ
-	 * @param {boolean} isDoConstraintsValidation UI5 標準の constraints バリデーションも実行するか
-	 * @returns {boolean}　true: valid, false: invalid
+	 * @param oTargetRootControl - 検証対象のコントロールもしくはそれを含むコンテナ
+	 * @param isDoConstraintsValidation - UI5 標準の constraints バリデーションも実行するか
+	 * @returns true: valid, false: invalid
 	 */
 	private _validate(oTargetRootControl: ValidateTargetControlOrContainer, isDoConstraintsValidation: boolean): boolean {
 		let isValid = true;
@@ -1081,10 +1083,9 @@ export default class Validator extends BaseObject {
 	 * sap.ui.table.Table#indexOfColumn や #getColumns で使う非表示列を含む列インデックス値から
 	 * sap.ui.table.Row#indexOfCell や #getCells で使う非表示列を除いた列インデックス値へ変換する
 	 * 
-	 * @private
-	 * @param {sap.ui.table.Table} oSapUiTableTable テーブルコントロール
-	 * @param {number[]|number} aColumnIndiciesOrIColumnIndex 非表示列を含む列インデックス値
-	 * @returns {number[]} 非表示列を除いた列インデックス値
+	 * @param oSapUiTableTable - テーブルコントロール
+	 * @param aColumnIndiciesOrIColumnIndex - 非表示列を含む列インデックス値
+	 * @returns 非表示列を除いた列インデックス値
 	 */
 	private _toVisibledColumnIndex(oSapUiTableTable: Table, aColumnIndiciesOrIColumnIndex: number | number[]): number[] {
 		const aColumns = oSapUiTableTable.getColumns();
@@ -1116,8 +1117,7 @@ export default class Validator extends BaseObject {
 	 * sap.ui.table.Table#rowsUpdated イベント用のハンドラ
 	 * テーブルの画面に表示されている行について、ValueState, ValueText を最新化する。
 	 * 
-	 * @private
-	 * @param {sap.ui.base.Event} oEvent イベント
+	 * @param oEvent - イベント
 	 */
 	private _renewValueStateInTable(oEvent: Event): void {
 		const oTable = oEvent.getSource();
@@ -1169,8 +1169,7 @@ export default class Validator extends BaseObject {
 	 * これらのイベントが発生した場合は this._mInvalidTableRowCols に保持しているバリデーションエラーの行インデックスとテーブルのデータの行が合わなくなってしまうため
 	 * this._mInvalidTableRowCols に保持しているエラー行・列情報をクリアする。
 	 * 
-	 * @private
-	 * @param {sap.ui.base.Event} oEvent イベント
+	 * @param oEvent - イベント
 	 */
 	private _clearInValidRowColsInTable(oEvent: Event): void {
 		const oEventSource = oEvent.getSource();
@@ -1186,13 +1185,12 @@ export default class Validator extends BaseObject {
 	/**
 	 * sap.ui.table.Table にバインドされているデータについて、バリデーションエラーとなった行・列情報をセットし、 MessageModel に Message を追加する。
 	 * 
-	 * @private
-	 * @param {sap.ui.table.Column[]} aColumns
-	 * @param {string} sTableBindingPath 
-	 * @param {number[]} aTableDataRowIndices 
-	 * @param {string|string[]} sMessageTextOrAMessageTexts 
-	 * @param {string[]} aLabelTexts
-	 * @param {string} sValidateFunctionId 
+	 * @param aColumns
+	 * @param sTableBindingPath 
+	 * @param aTableDataRowIndices 
+	 * @param sMessageTextOrAMessageTexts 
+	 * @param aLabelTexts
+	 * @param sValidateFunctionId
 	 */
 	private _addMessageAndInvalidTableRowCol(aColumns: Column[], sTableBindingPath: string, aTableDataRowIndices: number[], sMessageTextOrAMessageTexts: string | string[], aLabelTexts: string[], sValidateFunctionId: string): void {
 		let hasValidationError = false;
@@ -1228,8 +1226,7 @@ export default class Validator extends BaseObject {
 	/**
 	 * sap.ui.table.Table のスクロール時に、テーブル上のコントロールの ValueState, ValueText を最新化させるためのイベントハンドラをアタッチする。
 	 * 
-	 * @private
-	 * @param {sap.ui.table.Table} oTable テーブル
+	 * @param oTable - テーブル
 	 */
 	private _attachTableRowsUpdater(oTable: Table): void {
 		if (this._sTableIdAttachedRowsUpdated.has(oTable.getId())) {
@@ -1248,9 +1245,8 @@ export default class Validator extends BaseObject {
 	/**
 	 * oControl のバリデーションの直後に実行するように登録済のバリデータ関数を呼び出す。
 	 * 
-	 * @private
-	 * @param {ValidateTargetControlOrContainer} oControl コントロール
-	 * @returns {boolean} true: valid, false: invalid
+	 * @param oControl - コントロール
+	 * @returns true: valid, false: invalid
 	 */
 	private _callRegisteredValidator(oControl: ValidateTargetControlOrContainer): boolean {
 		let isValid = true;
@@ -1276,8 +1272,7 @@ export default class Validator extends BaseObject {
 	/**
 	 * oControl に必須チェック用フォーカスアウトバリデータを attach する。
 	 * 
-	 * @private
-	 * @param {sap.ui.core.Control} oControl コントロール
+	 * @param oControl - コントロール
 	 */
 	private _attachNotRegisteredValidator(oControl: Control): void {
 		if (!("attachSelectionFinish" in oControl) && !("attachChange" in oControl) && !("attachSelect" in oControl)) {
@@ -1294,16 +1289,15 @@ export default class Validator extends BaseObject {
 	};
 
 	/**
-	 * oControl に {@link Validator#registerValidator registerValidator} や {@link Validator#registerRequiredValidator registerRequiredValidator} で登録されたフォーカスアウトバリデータを attach する。
+	 * oControl に {@link Validator#registerValidator | registerValidator} や {@link Validator#registerRequiredValidator | registerRequiredValidator} で登録されたフォーカスアウトバリデータを attach する。
 	 * 
-	 * @private
-	 * @param {sap.ui.core.Control|sap.ui.core.Control[]} oControlOrAControls コントロールまたはコントロール配列
-	 * @param {testFunction} fnTest attach するバリデータ関数
-	 * @param {string|string[]} sMessageTextOrAMessageTexts 検証エラーメッセージまたはその配列
-	 * @param {string} sValidateFunctionId fnTest を識別するための任意のID
-	 * @param {boolean} bIsGroupedTargetControls true: oControlOrAControls を1つのグループとみなして検証は1回だけ（コントロール数分ではない）で、エラーメッセージも1つだけで、エラーステートは全部のコントロールにつくかつかないか（一部だけつくことはない）,
-	 *                                           false: oControlOrAControls を1つのグループとみなさない
-	 * @param {sap.ui.core.Control|sap.ui.core.Control[]} [oControlOrAControlsMoreAttachValidator] oControlOrAControls 以外に fnTest を追加で attach するコントロールの配列
+	 * @param oControlOrAControls - コントロールまたはコントロール配列
+	 * @param {testFunction} fnTest - attach するバリデータ関数
+	 * @param sMessageTextOrAMessageTexts - 検証エラーメッセージまたはその配列
+	 * @param ValidateFunctionId - fnTest を識別するための任意のID
+	 * @param bIsGroupedTargetControls - true: oControlOrAControls を1つのグループとみなして検証は1回だけ（コントロール数分ではない）で、エラーメッセージも1つだけで、エラーステートは全部のコントロールにつくかつかないか（一部だけつくことはない）,
+	 *                                   false: oControlOrAControls を1つのグループとみなさない
+	 * @param [oControlOrAControlsMoreAttachValidator] - oControlOrAControls 以外に fnTest を追加で attach するコントロールの配列
 	 */
 	private _attachRegisteredValidator(
 		oControlOrAControls: Control | Control[],
@@ -1367,10 +1361,9 @@ export default class Validator extends BaseObject {
 	/**
 	 * フォーカスアウトバリデータを attach 済みかどうかを返す。
 	 * 
-	 * @private
-	 * @param {string} sControlId コントロールID
-	 * @param {string} sValidateFunctionId {@link Validator#registerValidator registerValidator} や {@link Validator#registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は ""
-	 * @returns {boolean} true: フォーカスアウトバリデータを attach 済み, false: フォーカスアウトバリデータを attach 済みでない
+	 * @param sControlId - コントロールID
+	 * @param sValidateFunctionId - {@link Validator#registerValidator | registerValidator} や {@link Validator#registerRequiredValidator | registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は ""
+	 * @returns true: フォーカスアウトバリデータを attach 済み, false: フォーカスアウトバリデータを attach 済みでない
 	 */
 	private _isAttachedValidator(sControlId: string, sValidateFunctionId: string): boolean {
 		const aValidateFunctionIds = this._mControlIdAttachedValidator.get(sControlId);
@@ -1383,10 +1376,9 @@ export default class Validator extends BaseObject {
 	/**
 	 * フォーカスアウトバリデータをアタッチする。
 	 * 
-	 * @private
-	 * @param {sap.ui.core.Control} oControl コントロール
-	 * @param {string} sValidateFunctionId {@link Validator#registerValidator registerValidator} や {@link Validator#registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は ""
-	 * @param {object|string} アタッチする関数に渡すデータ
+	 * @param oControl - コントロール
+	 * @param sValidateFunctionId - {@link Validator#registerValidator | registerValidator} や {@link Validator#registerRequiredValidator | registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は ""
+	 * @param oData - アタッチする関数に渡すデータ
 	 */
 	private _internalAttachValidator(oControl: Control, sValidateFunctionId: string, oData: object | string): void {
 		const sControlId = oControl.getId();
@@ -1420,8 +1412,7 @@ export default class Validator extends BaseObject {
 	/**
 	 * oControl の、本 Validator によりアタッチされているフォーカスアウトバリデータをデタッチする。
 	 * 
-	 * @private
-	 * @param {sap.ui.core.Control} oControl コントロール
+	 * @param oControl - コントロール
 	 */
 	private _detachAllValidators(oControl: Control): void {
 		const sControlId = oControl.getId();
@@ -1451,9 +1442,8 @@ export default class Validator extends BaseObject {
 	/**
 	 * 必須チェック用フォーカスアウトバリデータ関数
 	 * 
-	 * @private
-	 * @param {sap.ui.base.Event} oEvent イベント
-	 * @param {string} sMessageText エラーメッセージ
+	 * @param oEvent - イベント
+	 * @param sMessageText - エラーメッセージ
 	 */
 	private _notRegisteredValidator(oEvent: Event, sMessageText: string): void {
 		const oControl = oEvent.getSource();
@@ -1481,15 +1471,14 @@ export default class Validator extends BaseObject {
 	 * 1つのコントロールに複数のバリデータを登録した場合でもコントロールにアタッチするイベントハンドラ関数は常にこの _registeredvalidator のみとなり、
 	 * 引数の oData がバリデータ毎に異なる値になることでバリデータの内容に応じたバリデーションを行う。
 	 * 
-	 * @private
-	 * @param {sap.ui.base.Event} oEvent イベント
-	 * @param {Object} oData データ
-	 * @param {sap.ui.core.Control} oData.targetControl
-	 * @param {function} oData.test バリデータ関数
-	 * @param {sap.ui.core.Control[]} oData.controls 合わせてエラー状態がセットまたは解除されるコントロールの配列
-	 * @param {boolean} oData.isGroupedTargetControls true: oData.controls を1つのグループとみなす, false: oData.controls を1つのグループとみなさない
-	 * @param {string} oData.messageText エラーメッセージ
-	 * @param {string} oData.validateFunctionId バリデータ関数を識別するID
+	 * @param oEvent - イベント
+	 * @param oData - データ
+	 * @param oData.targetControl
+	 * @param oData.test - バリデータ関数
+	 * @param oData.controls - 合わせてエラー状態がセットまたは解除されるコントロールの配列
+	 * @param oData.isGroupedTargetControls - true: oData.controls を1つのグループとみなす, false: oData.controls を1つのグループとみなさない
+	 * @param oData.messageText - エラーメッセージ
+	 * @param oData.validateFunctionId - バリデータ関数を識別するID
 	 */
 	private _registeredvalidator(oEvent: Event, oData: {
 		targetControl: Control,
@@ -1548,9 +1537,8 @@ export default class Validator extends BaseObject {
 	/**
 	 * oControl が JSONModel がバインドされた sap.ui.table.Table 内のセルかどうかを返します。
 	 * 
-	 * @private
-	 * @param {sap.ui.core.Control} oControl コントロール
-	 * @returns {boolean} true: JSONModel がバインドされた sap.ui.table.Table 内のセル, false: それ以外
+	 * @param oControl - コントロール
+	 * @returns true: JSONModel がバインドされた sap.ui.table.Table 内のセル, false: それ以外
 	 */
 	private _isCellInSapUiTableTableBindedJsonModel(oControl: Control): boolean {
 		return oControl.getParent() && oControl.getParent().getParent() instanceof Table && oControl.getParent().getParent().getBinding("rows") && oControl.getParent().getParent().getBinding("rows").getModel() instanceof JSONModel;
@@ -1559,11 +1547,10 @@ export default class Validator extends BaseObject {
 	/**
 	 * sap.ui.table.Table 内のセルについて、バリデーションエラー行・列情報への登録と、MessageModel への登録と ValueState/ValueText のセットを行います。
 	 * 
-	 * @private
-	 * @param {sap.ui.core.Control|sap.ui.core.Control[]} oControlOrAControls sap.ui.table.Table 内のセル
-	 * @param {string} sMessageText メッセージ
-	 * @param {string} sValidateFunctionId registerValidator/registerRequiredValidator で登録したバリデータ関数のID、デフォルトの必須バリデータの場合は ""
-	 * @param {boolean} isGroupedTargetControls
+	 * @param oControlOrAControls - sap.ui.table.Table 内のセル
+	 * @param sMessageText - メッセージ
+	 * @param sValidateFunctionId - registerValidator/registerRequiredValidator で登録したバリデータ関数のID、デフォルトの必須バリデータの場合は ""
+	 * @param isGroupedTargetControls
 	 */
 	private _setErrorCellInSapUiTableTable(oControlOrAControls: Control | Control[], sMessageText: string, sValidateFunctionId: string, isGroupedTargetControls: boolean): void {
 		// Array.isArray(oControlOrAControls) && !isGroupedTargetControls - テーブル内の同一行内の項目相関バリデーション（e.g. A列がBの場合は、C列はDにしてください） or
@@ -1603,10 +1590,9 @@ export default class Validator extends BaseObject {
 	/**
 	 * sap.ui.table.Table 内のセルについて、保持しているバリデーションエラー行・列情報をクリアし、MessageModel からの削除と ValueState/ValueText のクリアを行います。
 	 * 
-	 * @private
-	 * @param {sap.ui.core.Control|sap.ui.core.Control[]} oControlOrAControls sap.ui.table.Table 内のセル
-	 * @param {string} sValidateFunctionId registerValidator/registerRequiredValidator で登録したバリデータ関数のID、デフォルトの必須バリデータの場合は ""
-	 * @param {boolean} isGroupedTargetControls
+	 * @param oControlOrAControls - sap.ui.table.Table 内のセル
+	 * @param sValidateFunctionId - registerValidator/registerRequiredValidator で登録したバリデータ関数のID、デフォルトの必須バリデータの場合は ""
+	 * @param isGroupedTargetControls
 	 */
 	private _clearErrorCellInSapUiTableTable(oControlOrAControls: Control | Control[], sValidateFunctionId: string, isGroupedTargetControls: boolean): void {
 		let aControls;
@@ -1670,9 +1656,8 @@ export default class Validator extends BaseObject {
 	/**
 	 * 引数のコントロールの必須チェックを行う。
 	 *
-	 * @private
-	 * @param {sap.ui.core.Control} oControl 検証対象のコントロール
-	 * @returns {boolean}　true: valid、false: invalid
+	 * @param oControl - 検証対象のコントロール
+	 * @returns true: valid、false: invalid
 	 */
 	private _validateRequired(oControl: Control): boolean {
 		if (!this._isNullValue(oControl)) {
@@ -1687,8 +1672,7 @@ export default class Validator extends BaseObject {
 	/**
 	 * sap.ui.table.Table の required な列について、テーブルにバインドされているデータ全行に対して必須チェックを行う。
 	 * 
-	 * @private
-	 * @param {sap.ui.table.Table} oTable 検証対象のテーブル
+	 * @param oTable - 検証対象のテーブル
 	 * @returns true: バリデーションOK, false: バリデーションNG
 	 */
 	private _validateRequiredInSapUiTableTable(oTable: Table): boolean {
@@ -1729,9 +1713,8 @@ export default class Validator extends BaseObject {
 	/**
 	 * メッセージを除去し、oControl に他にエラーがなければエラーステートをクリアする。
 	 * 
-	 * @private
-	 * @param {sap.ui.core.Control} oControl 対象のコントロール
-	 * @param {string} sValidateFunctionId {@link Validator#registerValidator registerValidator} や {@link Validator#registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は ""
+	 * @param oControl - 対象のコントロール
+	 * @param sValidateFunctionId - {@link Validator#registerValidator | registerValidator} や {@link Validator#registerRequiredValidator | registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は ""
 	 */
 	private _removeMessageAndValueState(oControl: Control, sValidateFunctionId: string): void {
 		const oMessageManager = sap.ui.getCore().getMessageManager();
@@ -1753,9 +1736,8 @@ export default class Validator extends BaseObject {
 	 * 不正な値を入力された場合、UI5標準のバリデーション(sap.ui.model.type.XXX の constraints によるバリデーション)によりエラーステートがセットされている可能性があるため、
 	 * 該当のコントロールにエラーメッセージがまだあるか確認し、ない場合にのみエラーステートをクリアする。
 	 * 
-	 * @private
-	 * @param {sap.ui.core.Control} oControl 処理対象のコントロール
-	 * @param {undefined|string|string[]} sTargetOrATargets セットされているメッセージの中から対象のコントロールのメッセージを判別するための Message の target/targets プロパティ値
+	 * @param oControl - 処理対象のコントロール
+	 * @param sTargetOrATargets - セットされているメッセージの中から対象のコントロールのメッセージを判別するための Message の target/targets プロパティ値
 	 */
 	private _clearValueStateIfNoErrors(oControl: Control, sTargetOrATargets: undefined | string | string[]): void {
 		if (!("setValueState" in oControl)) {
@@ -1802,10 +1784,9 @@ export default class Validator extends BaseObject {
 	/**
 	 * oElement が sParentControlId のコントロール自身もしくはその子供かどうか判定する。
 	 * 
-	 * @private
-	 * @param {sap.ui.core.Element} oElement 判定対象のコントロール
-	 * @param {string} sParentControlId 親コントロールID
-	 * @returns {boolean} true: 親コントロール自身かその子供, false: 親コントロールでもその子供でもない
+	 * @param oElement - 判定対象のコントロール
+	 * @param sParentControlId - 親コントロールID
+	 * @returns true: 親コントロール自身かその子供, false: 親コントロールでもその子供でもない
 	 */
 	private _isChildOrEqualControlId(oElement: Element, sParentControlId: string): boolean {
 		if (oElement.getId() === sParentControlId) {
@@ -1825,9 +1806,8 @@ export default class Validator extends BaseObject {
 	/**
 	 * oControlOrAControls に対応する {@link Message Message} の target 文字列を返す。
 	 * 
-	 * @private
-	 * @param {sap.ui.core.Control|sap.ui.core.Control[]} oControlOrAControls コントロールまたはその配列
-	 * @returns {undefined|string|string[]} target 文字列
+	 * @param oControlOrAControls - コントロールまたはその配列
+	 * @returns target 文字列
 	 */
 	private _resolveMessageTarget(oControlOrAControls: Control | Control[]): undefined | string | string[] {
 		let aControls = [];
@@ -1872,9 +1852,8 @@ export default class Validator extends BaseObject {
 	/**
 	 * バインドされているプロパティ名を返します。
 	 * 
-	 * @private
-	 * @param {sap.ui.core.Control} oControl 
-	 * @returns {string|undefined} バインドされているプロパティ名
+	 * @param oControl 
+	 * @returns バインドされているプロパティ名
 	 */
 	private _resolveBindingPropertyName(oControl: Control): string | undefined {
 		if (oControl.getBindingInfo("dateValue")) {
@@ -1907,9 +1886,8 @@ export default class Validator extends BaseObject {
 	/**
 	 * oControl の値が空か判定する。
 	 * 
-	 * @private
-	 * @param {sap.ui.core.Control} oControl 検証対象のコントロール
-	 * @returns {boolean} true: 値が空, false: 値が空でない
+	 * @param oControl - 検証対象のコントロール
+	 * @returns true: 値が空, false: 値が空でない
 	 */
 	private _isNullValue(oControl: Control): boolean {
 		if (!("getValue" in oControl) &&
@@ -1947,9 +1925,8 @@ export default class Validator extends BaseObject {
 	/**
 	 * 必須エラーメッセージを返す。
 	 * 
-	 * @private
-	 * @param {sap.ui.core.Control} oControl コントロール
-	 * @returns {string} 必須エラーメッセージ
+	 * @param oControl - コントロール
+	 * @returns 必須エラーメッセージ
 	 */
 	private _getRequiredErrorMessageTextByControl(oControl: Control): string {
 		const sRequiredInputMessage = "Required to input.";
@@ -1972,10 +1949,9 @@ export default class Validator extends BaseObject {
 	/**
 	 * リソースバンドルからテキストを取得して返す。リソースバンドルが設定されていない場合は sDefaultText を返す。
 	 * 
-	 * @private
-	 * @param {string} sKey キー
-	 * @param {string} sDefaultText デフォルトのテキスト
-	 * @returns {string} テキスト
+	 * @param sKey - キー
+	 * @param sDefaultText - デフォルトのテキスト
+	 * @returns テキスト
 	 */
 	private _getResourceText(sKey: string, sDefaultText: string): string {
 		if (this._resourceBundle) {
@@ -1987,9 +1963,8 @@ export default class Validator extends BaseObject {
 	/**
 	 * oControl のラベルテキストを返す。
 	 * 
-	 * @private
-	 * @param {sap.ui.core.Control} oControl コントロール
-	 * @returns {string|undefined} ラベルテキスト。ラベルが見つからない場合は undefined
+	 * @param oControl - コントロール
+	 * @returns ラベルテキスト。ラベルが見つからない場合は undefined
 	 */
 	private _getLabelText(oControl: Control): string | undefined {
 		// sap.ui.core.LabelEnablement#getReferencingLabels は
@@ -2051,12 +2026,11 @@ export default class Validator extends BaseObject {
 	};
 
 	/**
-	 * {@link sap.ui.core.message.MessageManager MessageManager} にメッセージを追加する。
+	 * {@link sap.ui.core.message.MessageManager | MessageManager} にメッセージを追加する。
 	 *
-	 * @private
-	 * @param {sap.ui.core.Control|sap.ui.core.Control[]} oControlOrAControls 検証エラーとなったコントロール
-	 * @param {string} sMessageText エラーメッセージ
-	 * @param {string} [sValidateFunctionId] {@link Validator#registerValidator registerValidator} や {@link Validator#registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は "" or undefined
+	 * @param oControlOrAControls - 検証エラーとなったコントロール
+	 * @param sMessageText - エラーメッセージ
+	 * @param [sValidateFunctionId] - {@link Validator#registerValidator | registerValidator} や {@link Validator#registerRequiredValidator | registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は "" or undefined
 	 */
 	private _addMessage(oControlOrAControls: Control | Control[], sMessageText: string, sValidateFunctionId?: string): void {
 		let oControl;
@@ -2095,14 +2069,13 @@ export default class Validator extends BaseObject {
 	};
 
 	/**
-	 * {@link sap.ui.core.message.MessageManager MessageManager} にメッセージを追加する。
+	 * {@link sap.ui.core.message.MessageManager | MessageManager} にメッセージを追加する。
 	 *
-	 * @private
-	 * @param {Column} oColumn 検証エラーとなった Column
-	 * @param {string} sMessageText エラーメッセージ
-	 * @param {string} sValidateFunctionId {@link Validator#registerValidator registerValidator} や {@link Validator#registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は "" or undefined
-	 * @param {string} fullTarget Message#fullTarget
-	 * @param {string} sAdditionalText Message#additionalText
+	 * @param oColumn - 検証エラーとなった Column
+	 * @param sMessageText - エラーメッセージ
+	 * @param sValidateFunctionId - {@link Validator#registerValidator | registerValidator} や {@link Validator#registerRequiredValidator | registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は "" or undefined
+	 * @param fullTarget - Message#fullTarget
+	 * @param sAdditionalText - Message#additionalText
 	 */
 	private _addMessageByColumn(oColumn: Column, sMessageText: string, sValidateFunctionId: string, fullTarget: string, sAdditionalText: string): void {
 		sap.ui.getCore().getMessageManager().addMessages(new _ValidatorMessage({
@@ -2118,12 +2091,11 @@ export default class Validator extends BaseObject {
 	};
 
 	/**
-	 * 引数のコントロールに {@link sap.ui.core.ValueState ValueState} と ValueStateText をセットする。
+	 * 引数のコントロールに {@link sap.ui.core.ValueState | ValueState} と ValueStateText をセットする。
 	 *
-	 * @private
-	 * @param {sap.ui.core.Control} oControl セット先のコントロール
-	 * @param {sap.ui.core.ValueState} oValueState セットするステート
-	 * @param {string} sText セットするステートテキスト
+	 * @param oControl - セット先のコントロール
+	 * @param oValueState - セットするステート
+	 * @param sText - セットするステートテキスト
 	 */
 	private _setValueState(oControl: Control, oValueState: ValueState, sText: string): void {
 		if ("setValueState" in oControl && typeof oControl.setValueState === "function") {
@@ -2142,9 +2114,8 @@ export default class Validator extends BaseObject {
 	/**
 	 * 本 Validator によりエラーステートをセットされているかを判定する。
 	 * 
-	 * @private
-	 * @param {sap.ui.core.Element} oElement エレメント
-	 * @returns {boolean} true: 本 Validator によりエラーステートをセットされている, false: セットされていない
+	 * @param oElement - エレメント
+	 * @returns true: 本 Validator によりエラーステートをセットされている, false: セットされていない
 	 */
 	private _isSetValueStateError(oElement: Element): boolean {
 		return oElement.data(this._CUSTOM_DATA_KEY_FOR_IS_SET_VALUE_STATE_ERROR) === "true";
@@ -2153,8 +2124,7 @@ export default class Validator extends BaseObject {
 	/**
 	 * 本 Validator によりエラーステートをセットしたとマークする。
 	 * 
-	 * @private
-	 * @param {sap.ui.core.Element} oElement エレメント
+	 * @param oElement - エレメント
 	 */
 	private _markSetValueStateError(oElement: Element): void {
 		oElement.data(this._CUSTOM_DATA_KEY_FOR_IS_SET_VALUE_STATE_ERROR, "true");
@@ -2163,8 +2133,7 @@ export default class Validator extends BaseObject {
 	/**
 	 * 本 Validator によりエラーステートをセットしたとマークしていたのを外す。
 	 * 
-	 * @private
-	 * @param {sap.ui.core.Element} oElement エレメント
+	 * @param oElement - エレメント
 	 */
 	private _unmarkSetValueStateError(oElement: Element): void {
 		oElement.data(this._CUSTOM_DATA_KEY_FOR_IS_SET_VALUE_STATE_ERROR, null);
@@ -2232,7 +2201,7 @@ class _ValidatorMessage extends Message {
 	/**
 	 * Returns the targets of this message.
 	 * 
-	 * @returns {string[]} The message targets; empty array if the message has no targets
+	 * @returns The message targets; empty array if the message has no targets
 	 */
 	getTargets(): string[] {
 		if (Message.prototype.getTargets) {
@@ -2247,7 +2216,7 @@ class _ValidatorMessage extends Message {
 	/**
 	 * 検証エラーとなったコントロールのIDを取得する。
 	 * 
-	 * @returns {string[]} 検証エラーとなったコントロールのID
+	 * @returns 検証エラーとなったコントロールのID
 	 */
 	getValidationErrorControlIds(): string[] {
 		return this.validationErrorControlIds;
@@ -2256,7 +2225,7 @@ class _ValidatorMessage extends Message {
 	/**
 	 * 検証を行った関数のIDを取得する。
 	 * 
-	 * @returns {string} 検証を行った関数のID
+	 * @returns 検証を行った関数のID
 	 */
 	getValidateFunctionId(): string {
 		return this.validateFunctionId;
