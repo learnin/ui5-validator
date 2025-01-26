@@ -1,3 +1,8 @@
+/**
+ * Validation library for OpenUI5 or SAPUI5 applications.
+ * 
+ * @packageDocumentation
+ */
 import deepExtend from "sap/base/util/deepExtend";
 import uid from "sap/base/util/uid";
 import CheckBox from "sap/m/CheckBox";
@@ -36,25 +41,69 @@ import SapMTableUtil from "./SapMTableUtil";
 export type ValidateTargetControlOrContainer = Control | FormContainer | FormElement| IconTabFilter;
 
 /**
- * {@link Validator#registerValidator registerValidator}, {@link Validator#registerRequiredValidator registerRequiredValidator} メソッドのオプション引数
+ * {@link Validator#registerValidator | registerValidator}, {@link Validator#registerRequiredValidator | registerRequiredValidator} メソッドのオプション引数の型
  */
 export type OptionParameterOfRegisterValidator = {
+	/**
+	 * {@link Validator#validate | validate} 実行時にバリデーション対象コントロールのフォーカスアウトイベントにバリデータ関数をアタッチするか
+	 * 
+	 * @remarks
+	 * デフォルトは true
+	 */
 	isAttachValidator: boolean;
+
+	/**
+	 * 直ちにバリデーション対象コントロールのフォーカスアウトイベントにバリデーション関数をアタッチするか
+	 * 
+	 * @remarks
+	 * デフォルトは registerValidator の場合は true, registerRequiredValidator の場合は false。\
+	 * isAttachValidator = false の場合、 true にすると SyntaxError がスローされる。
+	 */
 	isAttachFocusoutValidationImmediately: boolean;
+
+	/**
+	 * バリデーション対象を1つのグループとみなすか
+	 * 
+	 * @remarks
+	 * true の場合、バリデーション対象を1つのグループとみなして関数の実行は1回だけとなり、エラーメッセージも1つだけとなる。\
+	 * エラーステートは対象の全部のコントロールにつくかつかないか（一部だけつくことはない）。\
+	 * デフォルトは false
+	 */
 	isGroupedTargetControls: boolean;
+
+	/**
+	 * バリデーション関数を追加でフォーカスアウトイベントにアタッチするコントロールまたはコントロールの配列
+	 * 
+	 * @remarks
+	 * バリデーション対象が配列の場合、true にすると SyntaxError がスローされる。
+	 */
 	controlsMoreAttachValidator: Control | Control[];
 };
 
 /**
- * validate メソッドのオプション引数
+ * {@link Validator#registerValidator | registerValidator}, {@link Validator#registerRequiredValidator | registerRequiredValidator} メソッドの引数のバリデーション関数の型
+ *
+ * @param oTargetControlOrAControlsOrValueOrValues - 検証対象のコントロールまたはその配列、または検証対象のテーブル列の値またはその配列
+ * @returns true: valid、false: invalid
+ */
+export type ValidateFunction = (oTargetControlOrAControlsOrValueOrValues: any) => boolean;
+
+/**
+ * {@link Validator#validate | validate} メソッドのオプション引数の型
  */
 export type ValidateOption = {
-	isDoConstraintsValidation: boolean;	// UI5 標準の constraints バリデーションも実行するか
+	/**
+	 * UI5 標準の constraints バリデーションも実行するか
+	 * 
+	 * @remarks
+	 * デフォルトは false
+	 */
+	isDoConstraintsValidation: boolean;
 }
 
 type ValidatorInfo = {
 	validateFunctionId: string;
-	testFunction: Function;
+	testFunction: ValidateFunction;
 	messageTextOrMessageTexts: string | string[];
 	targetControlOrControls: Control | Control[];
 	validateFunction: (oValidatorInfo: ValidatorInfo) => boolean;
@@ -116,22 +165,23 @@ const assertColumnOrColumns: (value: any) => asserts value is Column | Column[] 
 };
 
 /**
- * バリデータ。
- * SAPUI5 の標準のバリデーションの仕組みは基本的にフォームフィールドの change 等のイベントで実行されるため
- * 必須フィールドに未入力のまま保存ボタン等を押された時にはバリデーションが実行されない。
- * 本バリデータはそれに対応するためのもので、必須フィールドのバリデーションや相関バリデーション等の独自バリデーションを行うための機能を提供する。
- * 
- * @namespace learnin.ui5.validator
+ * バリデータ
  */
 export default class Validator extends BaseObject {
 
 	/**
 	 * 入力コントロールの必須バリデーションエラーメッセージのリソースバンドルキー
+	 * 
+	 * @remarks
+	 * デフォルトのメッセージを変更したい場合は、コンストラクタ引数の resourceBundle にこのプロパティキーを定義したメッセージリソースバンドルを渡してください。
 	 */
 	public RESOURCE_BUNDLE_KEY_REQUIRED_INPUT = "learnin.ui5.validator.Validator.message.requiredInput";
 	
 	/**
 	 * 選択コントロールの必須バリデーションエラーメッセージのリソースバンドルキー
+	 * 
+	 * @remarks
+	 * デフォルトのメッセージを変更したい場合は、コンストラクタ引数の resourceBundle にこのプロパティキーを定義したメッセージリソースバンドルを渡してください。
 	 */
 	public RESOURCE_BUNDLE_KEY_REQUIRED_SELECT = "learnin.ui5.validator.Validator.message.requiredSelect";
 	
@@ -251,7 +301,7 @@ export default class Validator extends BaseObject {
 	 * 引数のオブジェクトもしくはその配下のコントロールのバリデーションを行う。
 	 *
 	 * @param oTargetRootControl - 検証対象のコントロールもしくはそれを含むコンテナ
-	 * @param [option] - オプション
+	 * @param option - オプション
 	 * @returns true: valid, false: invalid
 	 * 
 	 * @public
@@ -369,23 +419,17 @@ export default class Validator extends BaseObject {
 	};
 
 	/**
-	 * {@link Validator#registerValidator registerValidator}, {@link Validator#registerRequiredValidator registerRequiredValidator} の引数のコールバック関数の型
-	 *
-	 * @public
-	 * @callback testFunction
-	 * @param {sap.ui.core.Control|sap.ui.core.Control[]} oTargetControlOrAControls 検証対象のコントロールまたはその配列
-	 * @returns {boolean} true: valid、false: invalid
-	 */
-	/**
-	 * oControlValidateBefore の検証後に実行する関数を登録する。
+	 * oControlValidateBefore の検証後に実行する関数を登録する
+	 * 
+	 * @remarks
 	 * すでに oControlValidateBefore に sValidateFunctionId の関数が登録されている場合は関数を上書きする。
 	 * 
-	 * @param [sValidateFunctionId] - fnTest を識別するための任意のID。省略時は自動生成される
-	 * @param {testFunction} fnTest - oControlValidateBefore の検証後に実行される検証用の関数
+	 * @param sValidateFunctionId - fnTest を識別するための任意のID。省略時は自動生成される
+	 * @param fnTest - 検証を行う関数
 	 * @param sMessageTextOrAMessageTexts - 検証エラーメッセージまたはその配列
 	 * @param oTargetControlOrAControls - 検証対象のコントロールまたはその配列
 	 * @param oControlValidateBefore - {@link Validator#validate | validate} oControlValidateBefore の検証後に fnTest が実行される。fnTest の実行順を指定するためのもの
-	 * @param [mParameter] - オプションパラメータ
+	 * @param mParameter - オプションパラメータ
 	 * @returns Reference to this in order to allow method chaining
 	 * 
 	 * @public
@@ -393,11 +437,11 @@ export default class Validator extends BaseObject {
 	// oTargetControlOrAControls が配列で sMessageTextOrAMessageTexts も配列で要素数が同じはOK
 	// oTargetControlOrAControls が配列で sMessageTextOrAMessageTexts がObjectもOK
 	// oTargetControlOrAControls がObjectで sMessageTextOrAMessageTexts もObjectもOK
-	registerValidator(sValidateFunctionId: string, fnTest: Function, sMessageTextOrAMessageTexts: string | string[], oTargetControlOrAControls: Control | Control[], oControlValidateBefore: Control, mParameter?: OptionParameterOfRegisterValidator): Validator
-	registerValidator(fnTest: Function, sMessageTextOrAMessageTexts: string | string[], oTargetControlOrAControls: Control | Control[], oControlValidateBefore: Control, mParameter?: OptionParameterOfRegisterValidator): Validator
+	registerValidator(sValidateFunctionId: string, fnTest: ValidateFunction, sMessageTextOrAMessageTexts: string | string[], oTargetControlOrAControls: Control | Control[], oControlValidateBefore: Control, mParameter?: OptionParameterOfRegisterValidator): Validator
+	registerValidator(fnTest: ValidateFunction, sMessageTextOrAMessageTexts: string | string[], oTargetControlOrAControls: Control | Control[], oControlValidateBefore: Control, mParameter?: OptionParameterOfRegisterValidator): Validator
 	registerValidator(
-		sValidateFunctionIdOrTest: string | Function,
-		fnTestOrMessageTextOrAMessageTexts: Function | string | string[],
+		sValidateFunctionIdOrTest: string | ValidateFunction,
+		fnTestOrMessageTextOrAMessageTexts: ValidateFunction | string | string[],
 		sMessageTextOrAMessageTextsOrTargetControlOrAControls: string | string[] | Control | Control[],
 		oTargetControlOrAControlsOrControlValidateBefore: Control | Control[],
 		oControlValidateBeforeOrParameter: Control | OptionParameterOfRegisterValidator,
@@ -406,7 +450,7 @@ export default class Validator extends BaseObject {
 			return this._registerValidator(
 				false,
 				sValidateFunctionIdOrTest,
-				fnTestOrMessageTextOrAMessageTexts as Function,
+				fnTestOrMessageTextOrAMessageTexts as ValidateFunction,
 				sMessageTextOrAMessageTextsOrTargetControlOrAControls as string | string[],
 				oTargetControlOrAControlsOrControlValidateBefore as Control | Control[],
 				oControlValidateBeforeOrParameter as Control,
@@ -425,7 +469,7 @@ export default class Validator extends BaseObject {
 	private _registerValidator(
 		isOriginalFunctionIdUndefined: boolean,
 		sValidateFunctionId: string,
-		fnTest: Function,
+		fnTest: ValidateFunction,
 		sMessageTextOrAMessageTexts: string | string[],
 		oTargetControlOrAControls: Control | Control[],
 		oControlValidateBefore: Control,
@@ -675,30 +719,32 @@ export default class Validator extends BaseObject {
 	};
 
 	/**
-	 * oControlValidateBefore の検証後に実行する必須チェック関数を登録する。
+	 * oControlValidateBefore の検証後に実行する必須チェック関数を登録する
+	 * 
+	 * @remarks
 	 * すでに oControlValidateBefore に sValidateFunctionId の関数が登録されている場合は関数を上書きする。
 	 * 
-	 * @param [sValidateFunctionId] - fnTest を識別するための任意のID。省略時は自動生成される
-	 * @param {testFunction} fnTest - oControlValidateBefore の検証後に実行される検証用の関数
+	 * @param sValidateFunctionId - fnTest を識別するための任意のID。省略時は自動生成される
+	 * @param fnTest - 検証を行う関数
 	 * @param oTargetControlOrAControls - 検証対象のコントロールまたはその配列
 	 * @param oControlValidateBefore - {@link Validator#validate | validate} oControlValidateBefore の検証後に fnTest が実行される。fnTest の実行順を指定するためのもの
-	 * @param [mParameter] - オプションパラメータ
+	 * @param mParameter - オプションパラメータ
 	 * @returns Reference to this in order to allow method chaining
 	 * 
 	 * @public
 	 */
-	registerRequiredValidator(sValidateFunctionId: string, fnTest: Function, oTargetControlOrAControls: Control | Control[], oControlValidateBefore: Control, mParameter?: OptionParameterOfRegisterValidator): Validator
-	registerRequiredValidator(fnTest: Function, oTargetControlOrAControls: Control | Control[], oControlValidateBefore: Control, mParameter?: OptionParameterOfRegisterValidator): Validator
+	registerRequiredValidator(sValidateFunctionId: string, fnTest: ValidateFunction, oTargetControlOrAControls: Control | Control[], oControlValidateBefore: Control, mParameter?: OptionParameterOfRegisterValidator): Validator
+	registerRequiredValidator(fnTest: ValidateFunction, oTargetControlOrAControls: Control | Control[], oControlValidateBefore: Control, mParameter?: OptionParameterOfRegisterValidator): Validator
 	registerRequiredValidator(
-		sValidateFunctionIdOrTest: string | Function,
-		fnTestOrTargetControlOrAControls: Function | Control | Control[],
+		sValidateFunctionIdOrTest: string | ValidateFunction,
+		fnTestOrTargetControlOrAControls: ValidateFunction | Control | Control[],
 		oTargetControlOrAControlsOrControlValidateBefore: Control | Control[],
 		oControlValidateBeforeOrParameter: Control | OptionParameterOfRegisterValidator,
 		mParameter?: OptionParameterOfRegisterValidator): Validator {
 		if (typeof sValidateFunctionIdOrTest === "string") {
 			return this._registerRequiredValidator(
 				sValidateFunctionIdOrTest,
-				fnTestOrTargetControlOrAControls as Function,
+				fnTestOrTargetControlOrAControls as ValidateFunction,
 				oTargetControlOrAControlsOrControlValidateBefore as Control | Control[],
 				oControlValidateBeforeOrParameter as Control,
 				mParameter);
@@ -711,15 +757,13 @@ export default class Validator extends BaseObject {
 			oControlValidateBeforeOrParameter as OptionParameterOfRegisterValidator);
 	}
 
-	private _registerRequiredValidator(sValidateFunctionId: string, fnTest: Function, oTargetControlOrAControls: Control | Control[], oControlValidateBefore: Control, mParameter?: OptionParameterOfRegisterValidator): Validator {
+	private _registerRequiredValidator(sValidateFunctionId: string, fnTest: ValidateFunction, oTargetControlOrAControls: Control | Control[], oControlValidateBefore: Control, mParameter?: OptionParameterOfRegisterValidator): Validator {
 		const oDefaultParam: {
 			isAttachFocusoutValidationImmediately: boolean;
 			isGroupedTargetControls: boolean;
 			controlsMoreAttachValidator: Control | Control[];
 		} = {
 			isAttachFocusoutValidationImmediately: false,
-			// isGroupedTargetControls: true の場合、oTargetControlOrAControls を1つのグループとみなして検証は1回だけ（コントロール数分ではない）で、エラーメッセージも1つだけで、
-			// エラーステートは全部のコントロールにつくかつかないか（一部だけつくことはない）
 			isGroupedTargetControls: false,
 			controlsMoreAttachValidator: null
 		};
@@ -1292,7 +1336,7 @@ export default class Validator extends BaseObject {
 	 * oControl に {@link Validator#registerValidator | registerValidator} や {@link Validator#registerRequiredValidator | registerRequiredValidator} で登録されたフォーカスアウトバリデータを attach する。
 	 * 
 	 * @param oControlOrAControls - コントロールまたはコントロール配列
-	 * @param {testFunction} fnTest - attach するバリデータ関数
+	 * @param fnTest - attach するバリデータ関数
 	 * @param sMessageTextOrAMessageTexts - 検証エラーメッセージまたはその配列
 	 * @param ValidateFunctionId - fnTest を識別するための任意のID
 	 * @param bIsGroupedTargetControls - true: oControlOrAControls を1つのグループとみなして検証は1回だけ（コントロール数分ではない）で、エラーメッセージも1つだけで、エラーステートは全部のコントロールにつくかつかないか（一部だけつくことはない）,
@@ -1301,7 +1345,7 @@ export default class Validator extends BaseObject {
 	 */
 	private _attachRegisteredValidator(
 		oControlOrAControls: Control | Control[],
-		fnTest: Function,
+		fnTest: ValidateFunction,
 		sMessageTextOrAMessageTexts: string | string[],
 		sValidateFunctionId: string,
 		bIsGroupedTargetControls: boolean,
