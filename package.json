@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "build": "tsc --noEmit && ui5 build --clean-dest",
-    "doc": "typedoc --plugin typedoc-plugin-rename-defaults --readme api-doc.md --lang jp src/learnin/ui5/validator/Validator.ts"
+    "doc": "typedoc --plugin typedoc-plugin-rename-defaults --readme api-doc.md --lang jp --out docs/ja src/learnin/ui5/validator/Validator.ts"
   },
   "files": [
     "dist",

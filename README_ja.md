@@ -35,7 +35,7 @@ SAPUI5/OpenUI5（以降、UI5と記述）ではバリデーション機能が提
 
 # API ドキュメント
 
-[API ドキュメント](https://learnin.github.io/ui5-validator/api/)
+[API ドキュメント](https://learnin.github.io/ui5-validator/api/ja/)
 
 # セットアップ
 
