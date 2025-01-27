@@ -1,12 +1,14 @@
 # UI5-Validator
 
+> [**English**](README.md)
+
 [![npm version](https://badge.fury.io/js/@learnin%2Fui5-validator.svg)](https://badge.fury.io/js/@learnin%2Fui5-validator)
 
 `UI5-Validator` は SAPUI5 または OpenUI5 アプリケーション向けのバリデーションライブラリです。  
 SAPUI5/OpenUI5（以降、UI5と記述）標準の `required` 属性やメッセージ管理の仕組み[^1] を利用しており、また、 `constraints` 属性による標準バリデーションと共存する仕組みのため、バリデーション対象コントロールに独自の属性やコントロールを追加する必要がありません。  
 `UI5-Validator` が提供するのは必須入力バリデーションと任意のバリデーションロジックを管理する仕組みであり、バリデーションロジックは自由に実装して利用することができます。
 
-[^1]: `sap.ui.core.message.MessageManager` を利用。これは SAPUI5/OpenUI5 1.118 で非推奨となり、 `sap.ui.core.Messaging` が推奨となっている、API はあまり変わっていない。
+[^1]: `sap.ui.core.message.MessageManager` を利用。これは SAPUI5/OpenUI5 1.118 で非推奨となり、 `sap.ui.core.Messaging` が推奨となっている。なお、API はあまり変わっていない。
 
 ## 機能
 
@@ -19,7 +21,9 @@ SAPUI5/OpenUI5（以降、UI5と記述）標準の `required` 属性やメッセ
 
 ## デモ
 
-[デモ](https://learnin.github.io/ui5-validator/demo/)
+[デモ](https://learnin.github.io/ui5-validator/demo/)  
+
+デモのソースコードは [example](example) を参照ください。
 
 ## API ドキュメント
 
@@ -94,7 +98,7 @@ ui5.yaml
 
 ビュー:  
 必須入力コントロールは `required` 属性を `true` に設定する。  
-型や桁数チェックは `type` および `constraints` 属性で指定する。 `ui5-validator` 独自のものはなく、標準 API を使って指定するだけ。  
+型や桁数チェックは `type` および `constraints` 属性で指定する。 `UI5-Validator` 独自のものはなく、標準 API を使って指定するだけ。  
 cf. https://sdk.openui5.org/topic/07e4b920f5734fd78fdaa236f26236d8
 
 ```xml
@@ -281,7 +285,7 @@ _onRouteMatched: function () {
 		oView.byId("xxx"),
 		// オプション
 		{
-			// true の場合、バリデーション対象を1つのグループとみなして関数の実行は1回だけとなり、エラーメッセージも1つだけとなる。デフォルトは false
+			// true の場合、バリデーション対象を1つのグループとみなして関数の実行は1回だけとなり、エラーメッセージも1つだけとなる
 			isGroupedTargetControls: true
 		}
 	);
@@ -408,6 +412,8 @@ _onRouteMatched: function () {
 #### 例3. テーブル内の同一行内の項目相関バリデーション
 
 `sap.ui.table.Table` 内の、ある列の値が必須かつ、別のある列の値が0の場合は、値が1桁であることを検証する。
+
+ビュー:
 
 ```xml
 <mvc:View
