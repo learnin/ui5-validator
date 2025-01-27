@@ -67,21 +67,21 @@ ui5.yaml
 
 ```json
 {
-	...
+	// ...
 	"sap.ui5": {
-		...,
+		// ...,
 		"handleValidation": true,
 		"dependencies": {
-			...,
+			// ...,
 			"libs": {
-				...,
+				// ...,
 				"learnin.ui5.validator": {}
 			}
 		},
 		"resourceRoots": {
 			"learnin.ui5.validator": "./libs/learnin/ui5/validator/"
 		},
-		...
+		// ...
 ```
 
 # 使い方
@@ -98,17 +98,17 @@ cf. https://sdk.openui5.org/topic/07e4b920f5734fd78fdaa236f26236d8
 	...
 	xmlns="sap.m">
 	...
-		<Label text="{i18n>label.xxx}" labelFor="xxx" required="true" />
-		<Input
-			id="xxx"
-			value="{
-				path: '{xxx>/xxx}',
-				type: 'sap.ui.model.type.String',
-				constraints: {
-					maxLength: 10
-				}
-			}"
-			maxLength="10" />
+	<Label text="{i18n>label.xxx}" labelFor="xxx" required="true" />
+	<Input
+		id="xxx"
+		value="{
+			path: '{xxx>/xxx}',
+			type: 'sap.ui.model.type.String',
+			constraints: {
+				maxLength: 10
+			}
+		}"
+		maxLength="10" />
 ```
 
 または
@@ -216,32 +216,32 @@ sap.ui.define([
 コントローラ:
 
 ```javascript
-		// onInit で this.getRouter().getRoute("xxx").attachMatched(this._onRouteMatched, this); しておく。
-		_onRouteMatched: function () {
-			const oView = this.getView();
+// onInit で this.getRouter().getRoute("xxx").attachMatched(this._onRouteMatched, this); しておく。
+_onRouteMatched: function () {
+	const oView = this.getView();
 
-			// 必須入力チェック以外のバリデーションは、UI5標準バリデーションと同様にフォーカスアウト時にエラー表示させる。
-			this._validator.registerValidator(
-				// 第2引数の関数を識別するためのID。Validator インスタンス内で一意な文字列とすること。
-				"validateFromToDate",
-				// バリデーション関数を渡す。OKなら true をNGなら false を返すこと。関数には第4引数で渡すコントロール配列が渡される。
-				([oFromDate, oToDate]) => {
-					const dFromDateValue = oFromDate.getDateValue();
-					const dToDateValue = oToDate.getDateValue();
-					// 必須チェックは別でやっているのでここでエラーにするのは両方入力されていて値が不正な場合のみ
-					return !(dFromDateValue && dToDateValue && dFromDateValue.getTime() > dToDateValue.getTime());
-				},
-				// バリデーションエラー時に表示するメッセージまたはメッセージの配列
-				[
-					this.getResourceText("message.dateBeforeDate", this.getResourceText("label.fromDate"), this.getResourceText("label.toDate")),
-					this.getResourceText("message.dateAfterDate", this.getResourceText("label.toDate"), this.getResourceText("label.fromDate"))
-				],
-				// バリデーション対象のコントロールまたはコントロールの配列
-				[oView.byId("fromDate"), oView.byId("toDate")],
-				// ここで渡すコントロールのバリデーションの後に、第2引数の関数が実行される。これにより、エラーメッセージの表示順序を制御できる
-				oView.byId("toDate")
-			);
-		}
+	// 必須入力チェック以外のバリデーションは、UI5標準バリデーションと同様にフォーカスアウト時にエラー表示させる。
+	this._validator.registerValidator(
+		// 第2引数の関数を識別するためのID。Validator インスタンス内で一意な文字列とすること。
+		"validateFromToDate",
+		// バリデーション関数を渡す。OKなら true をNGなら false を返すこと。関数には第4引数で渡すコントロール配列が渡される。
+		([oFromDate, oToDate]) => {
+			const dFromDateValue = oFromDate.getDateValue();
+			const dToDateValue = oToDate.getDateValue();
+			// 必須チェックは別でやっているのでここでエラーにするのは両方入力されていて値が不正な場合のみ
+			return !(dFromDateValue && dToDateValue && dFromDateValue.getTime() > dToDateValue.getTime());
+		},
+		// バリデーションエラー時に表示するメッセージまたはメッセージの配列
+		[
+			this.getResourceText("message.dateBeforeDate", this.getResourceText("label.fromDate"), this.getResourceText("label.toDate")),
+			this.getResourceText("message.dateAfterDate", this.getResourceText("label.toDate"), this.getResourceText("label.fromDate"))
+		],
+		// バリデーション対象のコントロールまたはコントロールの配列
+		[oView.byId("fromDate"), oView.byId("toDate")],
+		// ここで渡すコントロールのバリデーションの後に、第2引数の関数が実行される。これにより、エラーメッセージの表示順序を制御できる
+		oView.byId("toDate")
+	);
+}
 ```
 
 ### 例2. 1つ以上選択必須なチェックボックスのバリデーション
@@ -262,26 +262,26 @@ sap.ui.define([
 コントローラ:
 
 ```javascript
-		// onInit で this.getRouter().getRoute("xxx").attachMatched(this._onRouteMatched, this); しておく。
-		_onRouteMatched: function () {
-			const oView = this.getView();
+// onInit で this.getRouter().getRoute("xxx").attachMatched(this._onRouteMatched, this); しておく。
+_onRouteMatched: function () {
+	const oView = this.getView();
 
-			this._validator.registerRequiredValidator(
-				// 第2引数の関数を識別するためのID。Validator インスタンス内で一意な文字列とすること。
-				"validateRequiredCheckBox",
-				// バリデーション関数を渡す。OKなら true をNGなら false を返すこと。関数には第4引数で渡すコントロール配列が渡される。
-				(aCheckBoxes) => aCheckBoxes.some(oCheckBox => oCheckBox.getSelected()),
-				// バリデーション対象のコントロールまたはコントロールの配列
-				oView.byId("xxx").getItems(),
-				// ここで渡すコントロールのバリデーションの後に、第2引数の関数が実行される。これにより、エラーメッセージの表示順序を制御できる
-				oView.byId("xxx"),
-				// オプション
-				{
-					// true の場合、バリデーション対象を1つのグループとみなして関数の実行は1回だけとなり、エラーメッセージも1つだけとなる。デフォルトは false
-					isGroupedTargetControls: true
-				}
-			);
+	this._validator.registerRequiredValidator(
+		// 第2引数の関数を識別するためのID。Validator インスタンス内で一意な文字列とすること。
+		"validateRequiredCheckBox",
+		// バリデーション関数を渡す。OKなら true をNGなら false を返すこと。関数には第4引数で渡すコントロール配列が渡される。
+		(aCheckBoxes) => aCheckBoxes.some(oCheckBox => oCheckBox.getSelected()),
+		// バリデーション対象のコントロールまたはコントロールの配列
+		oView.byId("xxx").getItems(),
+		// ここで渡すコントロールのバリデーションの後に、第2引数の関数が実行される。これにより、エラーメッセージの表示順序を制御できる
+		oView.byId("xxx"),
+		// オプション
+		{
+			// true の場合、バリデーション対象を1つのグループとみなして関数の実行は1回だけとなり、エラーメッセージも1つだけとなる。デフォルトは false
+			isGroupedTargetControls: true
 		}
+	);
+}
 ```
 
 ## テーブル内のコントロールのバリデーションの実装方法
@@ -297,49 +297,49 @@ sap.ui.define([
 	...
 	xmlns:table="sap.ui.table">
 	...
-		<table:Table
-			id="gridTable"
-			rows="{
-				path: 'xxx>/data',
-				templateShareable: false
-			}">
-			<table:Column id="col1InGridTable">
-				<Label text="xxx" labelFor="xxx" />
-				<table:template>
-					<Input id="xxx" value="{xxx>xxx}" required="true" />
-				</table:template>
-			</table:Column>
-		</table:Table>
+	<table:Table
+		id="gridTable"
+		rows="{
+			path: 'xxx>/data',
+			templateShareable: false
+		}">
+		<table:Column id="col1InGridTable">
+			<Label text="xxx" labelFor="xxx" />
+			<table:template>
+				<Input id="xxx" value="{xxx>xxx}" required="true" />
+			</table:template>
+		</table:Column>
+	</table:Table>
 ```
 
 コントローラ:
 
 ```javascript
-		// onInit で this.getRouter().getRoute("xxx").attachMatched(this._onRouteMatched, this); しておく。
-		_onRouteMatched: function () {
-			const oView = this.getView();
+// onInit で this.getRouter().getRoute("xxx").attachMatched(this._onRouteMatched, this); しておく。
+_onRouteMatched: function () {
+	const oView = this.getView();
 
-			this._validator.registerValidator(
-				// 第2引数の関数を識別するためのID。Validator インスタンス内で一意な文字列とすること。
-				"validateColumnExample1",
-				// この引数の関数は、oInputOrValue には
-				// フォーカスアウト時は フォーカスアウトした行の　col1InGridTable が渡されて、1度だけ呼び出され、
-				// validate メソッド実行時は n行目の col1InGridTable 列の値 が渡されて、 n = 1 から テーブルにバインドされているデータの行数分まで 繰り返し呼び出される。
-				(oInputOrValue) => {
-					let sValue = oInputOrValue;
-					if (oInputOrValue instanceof Input) {
-						sValue = oInputOrValue.getValue();
-					}
-					return !sValue || sValue.length <= 2;
-				},
-				// バリデーションエラー時に表示するメッセージ
-				this.getResourceText("message.enterUpToLetters", "2"),
-				// バリデーション対象の Column
-				oView.byId("col1InGridTable"),
-				// バリデーション対象の Table
-				oView.byId("gridTable")
-			);
-		}
+	this._validator.registerValidator(
+		// 第2引数の関数を識別するためのID。Validator インスタンス内で一意な文字列とすること。
+		"validateColumnExample1",
+		// この引数の関数は、oInputOrValue には
+		// フォーカスアウト時は フォーカスアウトした行の　col1InGridTable が渡されて、1度だけ呼び出され、
+		// validate メソッド実行時は n行目の col1InGridTable 列の値 が渡されて、 n = 1 から テーブルにバインドされているデータの行数分まで 繰り返し呼び出される。
+		(oInputOrValue) => {
+			let sValue = oInputOrValue;
+			if (oInputOrValue instanceof Input) {
+				sValue = oInputOrValue.getValue();
+			}
+			return !sValue || sValue.length <= 2;
+		},
+		// バリデーションエラー時に表示するメッセージ
+		this.getResourceText("message.enterUpToLetters", "2"),
+		// バリデーション対象の Column
+		oView.byId("col1InGridTable"),
+		// バリデーション対象の Table
+		oView.byId("gridTable")
+	);
+}
 ```
 
 ### 例2. テーブル内の同一列項目間の相関バリデーション
@@ -353,52 +353,52 @@ sap.ui.define([
 	...
 	xmlns:table="sap.ui.table">
 	...
-		<table:Table
-			id="gridTable2"
-			rows="{
-				path: 'xxx>/data',
-				templateShareable: false
-			}">
-			<table:Column id="col1InGridTable2">
-				<Label text="xxx" labelFor="xxx" />
-				<table:template>
-					<Input id="xxx" value="{xxx>xxx}" required="true" />
-				</table:template>
-			</table:Column>
-		</table:Table>
+	<table:Table
+		id="gridTable2"
+		rows="{
+			path: 'xxx>/data',
+			templateShareable: false
+		}">
+		<table:Column id="col1InGridTable2">
+			<Label text="xxx" labelFor="xxx" />
+			<table:template>
+				<Input id="xxx" value="{xxx>xxx}" required="true" />
+			</table:template>
+		</table:Column>
+	</table:Table>
 ```
 
 コントローラ:
 
 ```javascript
-		// onInit で this.getRouter().getRoute("xxx").attachMatched(this._onRouteMatched, this); しておく。
-		_onRouteMatched: function () {
-			const oView = this.getView();
+// onInit で this.getRouter().getRoute("xxx").attachMatched(this._onRouteMatched, this); しておく。
+_onRouteMatched: function () {
+	const oView = this.getView();
 
-			this._validator.registerValidator(
-				// 第2引数の関数を識別するためのID。Validator インスタンス内で一意な文字列とすること。
-				"validateColumnExample2",
-				// この引数の関数は、aInputsOrValues には
-				// フォーカスアウト時も validate メソッド実行時も [1行目のcol1InGridTable2列の値, 2行目のcol1InGridTable2列の値, ... テーブルにバインドされているデータの行末目のcol1InGridTable2列の値] が渡されて、1度だけ呼び出される。
-				(aInputsOrValues) => {
-					let aValues = aInputsOrValues;
-					if (aInputsOrValues[0] instanceof Input) {
-						aValues = aInputsOrValues.map(oInput => oInput.getValue());
-					}
-					return aValues.some(sValue => sValue === "0");
-				},
-				// バリデーションエラー時に表示するメッセージ
-				this.getResourceText("message.enterEitherLine", "0"),
-				// バリデーション対象の Column
-				oView.byId("col1InGridTable2"),
-				// バリデーション対象の Table
-				oView.byId("gridTable2")
-				{
-					isGroupedTargetControls: true,
-					isAttachFocusoutValidationImmediately: false
-				}
-			);
+	this._validator.registerValidator(
+		// 第2引数の関数を識別するためのID。Validator インスタンス内で一意な文字列とすること。
+		"validateColumnExample2",
+		// この引数の関数は、aInputsOrValues には
+		// フォーカスアウト時も validate メソッド実行時も [1行目のcol1InGridTable2列の値, 2行目のcol1InGridTable2列の値, ... テーブルにバインドされているデータの行末目のcol1InGridTable2列の値] が渡されて、1度だけ呼び出される。
+		(aInputsOrValues) => {
+			let aValues = aInputsOrValues;
+			if (aInputsOrValues[0] instanceof Input) {
+				aValues = aInputsOrValues.map(oInput => oInput.getValue());
+			}
+			return aValues.some(sValue => sValue === "0");
+		},
+		// バリデーションエラー時に表示するメッセージ
+		this.getResourceText("message.enterEitherLine", "0"),
+		// バリデーション対象の Column
+		oView.byId("col1InGridTable2"),
+		// バリデーション対象の Table
+		oView.byId("gridTable2")
+		{
+			isGroupedTargetControls: true,
+			isAttachFocusoutValidationImmediately: false
 		}
+	);
+}
 ```
 
 ### 例3. テーブル内の同一行内の項目相関バリデーション
@@ -410,54 +410,54 @@ sap.ui.define([
 	...
 	xmlns:table="sap.ui.table">
 	...
-		<table:Table
-			id="gridTable3"
-			rows="{
-				path: 'xxx>/data',
-				templateShareable: false
-			}">
-			<table:Column id="col1InGridTable3" label="xxx1">
-				<table:template>
-					<Input id="xxx1" value="{xxx>xxx1}" />
-				</table:template>
-			</table:Column>
-			<table:Column id="col2InGridTable3">
-				<Label text="xxx2" labelFor="xxx2" />
-				<table:template>
-					<Input id="xxx2" value="{xxx>xxx2}" required="true" />
-				</table:template>
-			</table:Column>
-		</table:Table>
+	<table:Table
+		id="gridTable3"
+		rows="{
+			path: 'xxx>/data',
+			templateShareable: false
+		}">
+		<table:Column id="col1InGridTable3" label="xxx1">
+			<table:template>
+				<Input id="xxx1" value="{xxx>xxx1}" />
+			</table:template>
+		</table:Column>
+		<table:Column id="col2InGridTable3">
+			<Label text="xxx2" labelFor="xxx2" />
+			<table:template>
+				<Input id="xxx2" value="{xxx>xxx2}" required="true" />
+			</table:template>
+		</table:Column>
+	</table:Table>
 ```
 
 コントローラ:
 
 ```javascript
-		// onInit で this.getRouter().getRoute("xxx").attachMatched(this._onRouteMatched, this); しておく。
-		_onRouteMatched: function () {
-			const oView = this.getView();
+// onInit で this.getRouter().getRoute("xxx").attachMatched(this._onRouteMatched, this); しておく。
+_onRouteMatched: function () {
+	const oView = this.getView();
 
-			this._validator.registerValidator(
-				// 第2引数の関数を識別するためのID。Validator インスタンス内で一意な文字列とすること。
-				"validateColumnExample3",
-				// この引数の関数は、aInputsOrValues には
-				// フォーカスアウト時は フォーカスアウトした行の　[col1InGridTable3, col2InGridTable3] が渡されて、1度だけ呼び出され、
-				// validate メソッド実行時は [n行目のcol1InGridTable3列の値, n行目のcol2InGridTable3列の値] が渡されて、 n = 1 から テーブルにバインドされているデータの行数分まで 繰り返し呼び出される。
-				(aInputsOrValues) => {
-					let aValues = aInputsOrValues;
-					if (aInputsOrValues[0] instanceof Input) {
-						aValues = aInputsOrValues.map(oInput => oInput.getValue());
-					}
-					return !(aValues[0] === "0" && aValues[1].length > 1);
-				},
-				// バリデーションエラー時に表示するメッセージ
-				this.getResourceText("message.col1Andcol2InGridTable3ValidationError", "label.xxx1", "0", "label.xxx2", "1"),
-				// バリデーション対象の Column の配列
-				[oView.byId("col1InGridTable3"), oView.byId("col2InGridTable3")],
-				// バリデーション対象の Table
-				oView.byId("gridTable3")
-			);
-		}
+	this._validator.registerValidator(
+		// 第2引数の関数を識別するためのID。Validator インスタンス内で一意な文字列とすること。
+		"validateColumnExample3",
+		// この引数の関数は、aInputsOrValues には
+		// フォーカスアウト時は フォーカスアウトした行の　[col1InGridTable3, col2InGridTable3] が渡されて、1度だけ呼び出され、
+		// validate メソッド実行時は [n行目のcol1InGridTable3列の値, n行目のcol2InGridTable3列の値] が渡されて、 n = 1 から テーブルにバインドされているデータの行数分まで 繰り返し呼び出される。
+		(aInputsOrValues) => {
+			let aValues = aInputsOrValues;
+			if (aInputsOrValues[0] instanceof Input) {
+				aValues = aInputsOrValues.map(oInput => oInput.getValue());
+			}
+			return !(aValues[0] === "0" && aValues[1].length > 1);
+		},
+		// バリデーションエラー時に表示するメッセージ
+		this.getResourceText("message.col1Andcol2InGridTable3ValidationError", "label.xxx1", "0", "label.xxx2", "1"),
+		// バリデーション対象の Column の配列
+		[oView.byId("col1InGridTable3"), oView.byId("col2InGridTable3")],
+		// バリデーション対象の Table
+		oView.byId("gridTable3")
+	);
+}
 ```
 
 ## `Validator` コンストラクタ引数について

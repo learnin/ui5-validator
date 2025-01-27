@@ -2,6 +2,9 @@ import ColumnListItem from "sap/m/ColumnListItem";
 import Table from "sap/m/Table";
 import Control from "sap/ui/core/Control";
 
+/**
+ * sap.m.Table に関するユーティリティクラス
+ */
 export default class SapMTableUtil {
 
     /**
