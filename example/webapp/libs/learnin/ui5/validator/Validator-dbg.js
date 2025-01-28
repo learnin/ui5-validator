@@ -9,15 +9,29 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
   const ValueState = sap_ui_core_library["ValueState"];
   // ui5-tooling-transpile が `import { default as sapMTable } from "sap/m/Table";` のようなデフォルトエクスポートのインポートへの別名付けの変換に対応していないため
   // デフォルトエクスポートクラス名が重複するものは別モジュールでインポートして対応している。
-  const SapMTableUtil = _interopRequireDefault(__SapMTableUtil); // 検証対象のコントロールもしくはそれを含むコンテナ
-  // validate メソッドのオプション引数
+  const SapMTableUtil = _interopRequireDefault(__SapMTableUtil);
+  /**
+   * 検証対象のコントロールもしくはそれを含むコンテナ
+   */
+  /**
+   * {@link Validator#registerValidator | registerValidator}, {@link Validator#registerRequiredValidator | registerRequiredValidator} メソッドのオプション引数の型
+   */
+  /**
+   * {@link Validator#registerValidator | registerValidator}, {@link Validator#registerRequiredValidator | registerRequiredValidator} メソッドの引数のバリデーション関数の型
+   *
+   * @param oTargetControlOrAControlsOrValueOrValues - 検証対象のコントロールまたはその配列、または検証対象のテーブル列の値またはその配列
+   * @returns true: valid、false: invalid
+   */
+  /**
+   * {@link Validator#validate | validate} メソッドのオプション引数の型
+   */
   /**
    * スクロールイベントハンドラ等、頻繁に実行されるイベントを間引くためのラッパー
    * 
-   * @param {object} thisArg this 参照
-   * @param {Function} fn イベントハンドラ
-   * @param {number} delay 遅延ミリ秒。最後に発生したイベントからこの期間を経過すると実行される
-   * @returns {Function} イベントハンドラ
+   * @param thisArg - this 参照
+   * @param fn - イベントハンドラ
+   * @param delay - 遅延ミリ秒。最後に発生したイベントからこの期間を経過すると実行される
+   * @returns イベントハンドラ
    */
   const debounceEventHandler = (thisArg, fn, delay) => {
     let timeoutId;
@@ -36,7 +50,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
   /**
    * T | T[] 型を T[] 型へ変換する
    * 
-   * @param valueOrValues 
+   * @param valueOrValues - 値または値の配列
    * @returns 引数が配列だった場合は引数そのまま、そうでない場合は引数を配列に入れたもの
    */
   const toArray = valueOrValues => {
@@ -49,7 +63,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
   /**
    * 引数が Column | Coulumn[] 型であることをアサーションするユーザ定義型ガード
    * 
-   * @param value アサーション対象
+   * @param value - アサーション対象
    */
   const assertColumnOrColumns = value => {
     if (value === null || value === undefined) {
@@ -62,28 +76,66 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
   };
 
   /**
-   * バリデータ。
-   * SAPUI5 の標準のバリデーションの仕組みは基本的にフォームフィールドの change 等のイベントで実行されるため
-   * 必須フィールドに未入力のまま保存ボタン等を押された時にはバリデーションが実行されない。
-   * 本バリデータはそれに対応するためのもので、必須フィールドのバリデーションや相関バリデーション等の独自バリデーションを行うための機能を提供する。
-   * 
-   * @namespace learnin.ui5.validator
+   * バリデータクラス
    */
-  const Validator = BaseObject.extend("learnin.ui5.validator.Validator", {
-    constructor: function _constructor(mParameter) {
-      BaseObject.prototype.constructor.call(this);
+  class Validator extends BaseObject {
+    /**
+     * 入力コントロールの必須バリデーションエラーメッセージのリソースバンドルキー
+     * 
+     * @remarks
+     * デフォルトのメッセージを変更したい場合は、コンストラクタ引数の resourceBundle にこのプロパティキーを定義したメッセージリソースバンドルを渡してください。
+     */
+    RESOURCE_BUNDLE_KEY_REQUIRED_INPUT = "learnin.ui5.validator.Validator.message.requiredInput";
 
-      // {@link #registerValidator registerValidator} {@link #registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数情報オブジェクト配列を保持するマップ。
-      this.RESOURCE_BUNDLE_KEY_REQUIRED_INPUT = "learnin.ui5.validator.Validator.message.requiredInput";
-      this.RESOURCE_BUNDLE_KEY_REQUIRED_SELECT = "learnin.ui5.validator.Validator.message.requiredSelect";
-      this._CUSTOM_DATA_KEY_FOR_IS_SET_VALUE_STATE_ERROR = "learnin.ui5.validator.Validator.IS_SET_VALUE_STATE_ERROR";
-      this._aTargetAggregations = ["items", "content", "form", "formContainers", "formElements", "fields", "sections", "subSections", "app", "pages", "_grid", "_page", "cells",
-      // sap.m.Table -> items -> cells
-      "contentAreas"];
-      this._mInvalidTableRowCols = new Map();
+    /**
+     * 選択コントロールの必須バリデーションエラーメッセージのリソースバンドルキー
+     * 
+     * @remarks
+     * デフォルトのメッセージを変更したい場合は、コンストラクタ引数の resourceBundle にこのプロパティキーを定義したメッセージリソースバンドルを渡してください。
+     */
+    RESOURCE_BUNDLE_KEY_REQUIRED_SELECT = "learnin.ui5.validator.Validator.message.requiredSelect";
+
+    /**
+     * バリデーションエラーにより ValueState.Error をセットされたコントロールに付加する customData 属性のキー
+     */
+    _CUSTOM_DATA_KEY_FOR_IS_SET_VALUE_STATE_ERROR = "learnin.ui5.validator.Validator.IS_SET_VALUE_STATE_ERROR";
+
+    // バリデーション対象とするコントロールの aggregation 名
+    _aTargetAggregations = ["items", "content", "form", "formContainers", "formElements", "fields", "sections", "subSections", "app", "pages", "_grid", "_page", "cells",
+    // sap.m.Table -> items -> cells
+    "contentAreas"];
+    // sap.ui.table.Table にバインドされているデータで、バリデーションエラーとなったデータの行・列情報を保持するマップ。型は Map<string, Object[]>
+    // key: テーブルID,
+    // value: {
+    //   rowPath: {string} sap.ui.table.Rowのバインディングパス,
+    //   rowIndex: {number} 行インデックス,
+    //   columnId: {string} 列ID,
+    //   message: {string} エラーメッセージ,
+    //   validateFunctionId: {string} registerValidator/registerRequiredValidatorで登録されたバリデータID or ""(デフォルトの必須バリデータの場合)
+    // }
+    _mInvalidTableRowCols = new Map();
+    /**
+     * コンストラクタ
+     * 
+     * @param mParameter - パラメータ
+     * @param mParameter.resourceBundle - i18n リソースバンドルクラス。デフォルトの必須バリデーションエラーメッセージを変更したい場合に指定する
+     * @param mParameter.targetAggregations - バリデーション対象として追加する、コントロールの aggregation 名。デフォルトでバリデーション対象にならないコントロールがある場合に指定する
+     * @param mParameter.useFocusoutValidation - isRequired="true" のコントロールおよび、registerValidator, registerRequiredValidator の対象コントロールに対し、
+     * フォーカスアウト時のバリデーション関数を、validate メソッド実行時にアタッチするか。\
+     * 		true （デフォルト）の場合：1度 validate するとフォーカスアウトでバリデーションが効くようになる（正しい値を入れてフォーカスアウトしてエラーが消えてもまた不正にしてフォーカスアウトするとエラーになる）\
+     * 		false の場合：1度 validate すると removeErrors するまでエラーは残りっぱなしとなる\
+     * 		ただし、registerValidator, registerRequiredValidator が isAttachFocusoutValidationImmediately: true で実行された場合にはそのバリデーション関数は
+     * 		useFocusoutValidation の値には関係なくアタッチされる。
+     * 
+     * @public
+     */
+    constructor(mParameter) {
+      super();
+
+      // {@link Validator#registerValidator registerValidator} {@link Validator#registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数情報オブジェクト配列を保持するマップ。
       this._mRegisteredValidator = new Map();
 
-      // フォーカスアウト時のバリデーション関数が attach されたコントロールIDを保持するマップ。型は Map<string, string[]>
+      // フォーカスアウト時のバリデーション関数がアタッチされたコントロールIDを保持するマップ。型は Map<string, string[]>
       // key: コントロールID,
       // value: validateFunctionIds アタッチされているバリデータ関数のID（デフォルトの必須バリデータの場合は ""）
       this._mControlIdAttachedValidator = new Map();
@@ -111,8 +163,18 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       if (mParameter && mParameter.useFocusoutValidation === false) {
         this._useFocusoutValidation = false;
       }
-    },
-    validate: function _validate(oTargetRootControl) {
+    }
+
+    /**
+     * 引数のオブジェクトもしくはその配下のコントロールのバリデーションを行う。
+     *
+     * @param oTargetRootControl - 検証対象のコントロールもしくはそれを含むコンテナ
+     * @param option - オプション
+     * @returns true: valid, false: invalid
+     * 
+     * @public
+     */
+    validate(oTargetRootControl) {
       let option = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {
         isDoConstraintsValidation: false
       };
@@ -120,8 +182,17 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         this._attachValidator(oTargetRootControl);
       }
       return this._validate(oTargetRootControl, option.isDoConstraintsValidation);
-    },
-    removeErrors: function _removeErrors(oTargetRootControl) {
+    }
+    /**
+     * 引数のオブジェクトもしくはその配下のコントロールについて、本クラスにより追加されたメッセージを
+     * {@link https://sdk.openui5.org/api/sap.ui.core.message.MessageManager | MessageManager} から除去する。
+     * その結果、該当コントロールにメッセージがなくなった場合は、{@link https://sdk.openui5.org/api/sap.ui.core.ValueState | ValueState} もクリアする。
+     *
+     * @param oTargetRootControl - 検証対象のコントロールもしくはそれを含むコンテナ
+     * 
+     * @public
+     */
+    removeErrors(oTargetRootControl) {
       if (!oTargetRootControl) {
         throw new SyntaxError();
       }
@@ -160,8 +231,15 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
           this._clearValueStateIfNoErrors(oElement, this._resolveMessageTarget(oElement));
         }
       });
-    },
-    removeAttachedValidators: function _removeAttachedValidators(oTargetRootControl) {
+    }
+    /**
+     * 引数のオブジェクトもしくはその配下のコントロールについて、本クラスによりアタッチされた関数をデタッチする。
+     * 
+     * @param oTargetRootControl - 対象のコントロールもしくはそれを含むコンテナ
+     * 
+     * @public
+     */
+    removeAttachedValidators(oTargetRootControl) {
       if (!oTargetRootControl) {
         throw new SyntaxError();
       }
@@ -193,14 +271,37 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
           this._sTableIdAttachedRowsUpdated.delete(sTableId);
         }
       });
-    },
-    registerValidator: function _registerValidator(sValidateFunctionIdOrTest, fnTestOrMessageTextOrAMessageTexts, sMessageTextOrAMessageTextsOrTargetControlOrAControls, oTargetControlOrAControlsOrControlValidateBefore, oControlValidateBeforeOrParameter, mParameter) {
+    }
+
+    /**
+     * バリデータにチェック関数を登録する。\
+     * 登録した関数は、{@link Validator#validate | validate} メソッド実行時に実行される。\
+     * また、設定によりフォーカスアウト時のバリデーション関数として対象コントロールにアタッチもされる。
+     * 
+     * @remarks
+     * すでに oControlValidateBefore に sValidateFunctionId の関数が登録されている場合は関数を上書きする。
+     * 
+     * @param sValidateFunctionId - fnTest を識別するための任意のID
+     * @param fnTest - チェックを行う関数
+     * @param sMessageTextOrAMessageTexts - 検証エラーメッセージ
+     * @param oTargetControlOrAControls - 検証対象のコントロール
+     * @param oControlValidateBefore - {@link Validator#validate | validate} 実行時、oControlValidateBefore の検証後に fnTest が実行される。fnTest の実行順を指定するためのもの
+     * @param mParameter - オプションパラメータ
+     * @returns Reference to this in order to allow method chaining
+     * 
+     * @public
+     */
+    // oTargetControlOrAControls が配列で sMessageTextOrAMessageTexts も配列で要素数が同じはOK
+    // oTargetControlOrAControls が配列で sMessageTextOrAMessageTexts がObjectもOK
+    // oTargetControlOrAControls がObjectで sMessageTextOrAMessageTexts もObjectもOK
+
+    registerValidator(sValidateFunctionIdOrTest, fnTestOrMessageTextOrAMessageTexts, sMessageTextOrAMessageTextsOrTargetControlOrAControls, oTargetControlOrAControlsOrControlValidateBefore, oControlValidateBeforeOrParameter, mParameter) {
       if (typeof sValidateFunctionIdOrTest === "string") {
         return this._registerValidator(false, sValidateFunctionIdOrTest, fnTestOrMessageTextOrAMessageTexts, sMessageTextOrAMessageTextsOrTargetControlOrAControls, oTargetControlOrAControlsOrControlValidateBefore, oControlValidateBeforeOrParameter, mParameter);
       }
       return this._registerValidator(true, uid(), sValidateFunctionIdOrTest, fnTestOrMessageTextOrAMessageTexts, sMessageTextOrAMessageTextsOrTargetControlOrAControls, oTargetControlOrAControlsOrControlValidateBefore, oControlValidateBeforeOrParameter);
-    },
-    _registerValidator: function _registerValidator2(isOriginalFunctionIdUndefined, sValidateFunctionId, fnTest, sMessageTextOrAMessageTexts, oTargetControlOrAControls, oControlValidateBefore, mParameter) {
+    }
+    _registerValidator(isOriginalFunctionIdUndefined, sValidateFunctionId, fnTest, sMessageTextOrAMessageTexts, oTargetControlOrAControls, oControlValidateBefore, mParameter) {
       if (!(!Array.isArray(oTargetControlOrAControls) && !Array.isArray(sMessageTextOrAMessageTexts) || Array.isArray(oTargetControlOrAControls) && !Array.isArray(sMessageTextOrAMessageTexts) || Array.isArray(oTargetControlOrAControls) && Array.isArray(sMessageTextOrAMessageTexts) && sMessageTextOrAMessageTexts.length == oTargetControlOrAControls.length)) {
         throw new SyntaxError();
       }
@@ -399,18 +500,35 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         }
       }
       return this;
-    },
-    registerRequiredValidator: function _registerRequiredValidator(sValidateFunctionIdOrTest, fnTestOrTargetControlOrAControls, oTargetControlOrAControlsOrControlValidateBefore, oControlValidateBeforeOrParameter, mParameter) {
+    }
+
+    /**
+     * バリデータに必須チェック関数を登録する。\
+     * 登録した関数は、{@link Validator#validate | validate} メソッド実行時に実行される。\
+     * また、設定によりフォーカスアウト時のバリデーション関数として対象コントロールにアタッチもされる。
+     * 
+     * @remarks
+     * すでに oControlValidateBefore に sValidateFunctionId の関数が登録されている場合は関数を上書きする。
+     * 
+     * @param sValidateFunctionId - fnTest を識別するための任意のID
+     * @param fnTest - 必須チェックを行う関数
+     * @param oTargetControlOrAControls - 検証対象のコントロール
+     * @param oControlValidateBefore - {@link Validator#validate | validate} 実行時、oControlValidateBefore の検証後に fnTest が実行される。fnTest の実行順を指定するためのもの
+     * @param mParameter - オプションパラメータ
+     * @returns Reference to this in order to allow method chaining
+     * 
+     * @public
+     */
+
+    registerRequiredValidator(sValidateFunctionIdOrTest, fnTestOrTargetControlOrAControls, oTargetControlOrAControlsOrControlValidateBefore, oControlValidateBeforeOrParameter, mParameter) {
       if (typeof sValidateFunctionIdOrTest === "string") {
         return this._registerRequiredValidator(sValidateFunctionIdOrTest, fnTestOrTargetControlOrAControls, oTargetControlOrAControlsOrControlValidateBefore, oControlValidateBeforeOrParameter, mParameter);
       }
       return this._registerRequiredValidator(uid(), sValidateFunctionIdOrTest, fnTestOrTargetControlOrAControls, oTargetControlOrAControlsOrControlValidateBefore, oControlValidateBeforeOrParameter);
-    },
-    _registerRequiredValidator: function _registerRequiredValidator2(sValidateFunctionId, fnTest, oTargetControlOrAControls, oControlValidateBefore, mParameter) {
+    }
+    _registerRequiredValidator(sValidateFunctionId, fnTest, oTargetControlOrAControls, oControlValidateBefore, mParameter) {
       const oDefaultParam = {
         isAttachFocusoutValidationImmediately: false,
-        // isGroupedTargetControls: true の場合、oTargetControlOrAControls を1つのグループとみなして検証は1回だけ（コントロール数分ではない）で、エラーメッセージも1つだけで、
-        // エラーステートは全部のコントロールにつくかつかないか（一部だけつくことはない）
         isGroupedTargetControls: false,
         controlsMoreAttachValidator: null
       };
@@ -430,8 +548,17 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       }
       this.registerValidator(sValidateFunctionId, fnTest, sMessageTextOrAMessageTexts, oTargetControlOrAControls, oControlValidateBefore, oParam);
       return this;
-    },
-    unregisterValidator: function _unregisterValidator(sValidateFunctionId, oControlValidateBefore) {
+    }
+    /**
+     * {@link Validator#registerValidator | registerValidator}, {@link Validator#registerRequiredValidator | registerRequiredValidator} で登録されている関数を登録解除する。
+     * 
+     * @param sValidateFunctionId - registerValidator, registerRequiredValidator メソッドの引数で渡した sValidateFunctionId
+     * @param oControlValidateBefore - registerValidator, registerRequiredValidator メソッドの引数で渡した oControlValidateBefore
+     * @returns Reference to this in order to allow method chaining
+     * 
+     * @public
+     */
+    unregisterValidator(sValidateFunctionId, oControlValidateBefore) {
       const sControlId = oControlValidateBefore.getId();
       if (!this._mRegisteredValidator.has(sControlId)) {
         return this;
@@ -445,8 +572,13 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         this._mRegisteredValidator.delete(sControlId);
       }
       return this;
-    },
-    _attachValidator: function _attachValidator(oTargetRootControl) {
+    }
+    /**
+     * 引数のオブジェクトもしくはその配下のコントロールにバリデータ関数をアタッチする。
+     *
+     * @param oTargetRootControl - バリデータ関数をアタッチするコントロールもしくはそれを含むコンテナ
+     */
+    _attachValidator(oTargetRootControl) {
       // 非表示のコントロールも後で表示される可能性が想定されるため、処理対象とする
       if (!(oTargetRootControl instanceof Control || oTargetRootControl instanceof FormContainer || oTargetRootControl instanceof FormElement || oTargetRootControl instanceof IconTabFilter)) {
         return;
@@ -535,8 +667,15 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
           }
         }
       }
-    },
-    _validate: function _validate2(oTargetRootControl, isDoConstraintsValidation) {
+    }
+    /**
+     * 引数のオブジェクトとその配下のコントロールのバリデーションを行う。
+     *
+     * @param oTargetRootControl - 検証対象のコントロールもしくはそれを含むコンテナ
+     * @param isDoConstraintsValidation - UI5 標準の constraints バリデーションも実行するか
+     * @returns true: valid, false: invalid
+     */
+    _validate(oTargetRootControl, isDoConstraintsValidation) {
       let isValid = true;
       const sTargetRootControlId = oTargetRootControl.getId();
       if (!((oTargetRootControl instanceof Control || oTargetRootControl instanceof FormContainer || oTargetRootControl instanceof FormElement || oTargetRootControl instanceof IconTabFilter) && oTargetRootControl.getVisible())) {
@@ -692,8 +831,16 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         isValid = false;
       }
       return isValid;
-    },
-    _toVisibledColumnIndex: function _toVisibledColumnIndex(oSapUiTableTable, aColumnIndiciesOrIColumnIndex) {
+    }
+    /**
+     * sap.ui.table.Table#indexOfColumn や #getColumns で使う非表示列を含む列インデックス値から
+     * sap.ui.table.Row#indexOfCell や #getCells で使う非表示列を除いた列インデックス値へ変換する
+     * 
+     * @param oSapUiTableTable - テーブルコントロール
+     * @param aColumnIndiciesOrIColumnIndex - 非表示列を含む列インデックス値
+     * @returns 非表示列を除いた列インデックス値
+     */
+    _toVisibledColumnIndex(oSapUiTableTable, aColumnIndiciesOrIColumnIndex) {
       const aColumns = oSapUiTableTable.getColumns();
       const convert = iColumnIndex => {
         let iNumberOfInVisibleColumns = 0;
@@ -715,8 +862,14 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         results.push(convert(aColumnIndicies[i]));
       }
       return results;
-    },
-    _renewValueStateInTable: function _renewValueStateInTable(oEvent) {
+    }
+    /**
+     * sap.ui.table.Table#rowsUpdated イベント用のハンドラ
+     * テーブルの画面に表示されている行について、ValueState, ValueText を最新化する。
+     * 
+     * @param oEvent - イベント
+     */
+    _renewValueStateInTable(oEvent) {
       const oTable = oEvent.getSource();
       if (!(oTable instanceof Table)) {
         return;
@@ -759,8 +912,15 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
           this._setValueState(oInvalidCell, ValueState.Error, aInvalidRowCols[i].message);
         }
       }
-    },
-    _clearInValidRowColsInTable: function _clearInValidRowColsInTable(oEvent) {
+    }
+    /**
+     * sap.ui.table.Table#sort や #filter, #modelContextChange イベント用のハンドラ
+     * これらのイベントが発生した場合は this._mInvalidTableRowCols に保持しているバリデーションエラーの行インデックスとテーブルのデータの行が合わなくなってしまうため
+     * this._mInvalidTableRowCols に保持しているエラー行・列情報をクリアする。
+     * 
+     * @param oEvent - イベント
+     */
+    _clearInValidRowColsInTable(oEvent) {
       const oEventSource = oEvent.getSource();
       if (!("getId" in oEventSource) || typeof oEventSource.getId !== "function") {
         return;
@@ -769,8 +929,18 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       if (this._mInvalidTableRowCols.has(sTableId)) {
         this._mInvalidTableRowCols.delete(sTableId);
       }
-    },
-    _addMessageAndInvalidTableRowCol: function _addMessageAndInvalidTableRowCol(aColumns, sTableBindingPath, aTableDataRowIndices, sMessageTextOrAMessageTexts, aLabelTexts, sValidateFunctionId) {
+    }
+    /**
+     * sap.ui.table.Table にバインドされているデータについて、バリデーションエラーとなった行・列情報をセットし、 MessageModel に Message を追加する。
+     * 
+     * @param aColumns
+     * @param sTableBindingPath 
+     * @param aTableDataRowIndices 
+     * @param sMessageTextOrAMessageTexts 
+     * @param aLabelTexts
+     * @param sValidateFunctionId
+     */
+    _addMessageAndInvalidTableRowCol(aColumns, sTableBindingPath, aTableDataRowIndices, sMessageTextOrAMessageTexts, aLabelTexts, sValidateFunctionId) {
       let hasValidationError = false;
       const aMessageTexts = toArray(sMessageTextOrAMessageTexts);
       aColumns.forEach((oColumn, i) => {
@@ -802,8 +972,13 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         // 画面から見えなくなると自動的に MessageModel から削除されてしまうので。
         this._addMessageByColumn(aColumns[0], aMessageTexts[0], sValidateFunctionId, `${sTableBindingPath}/${aTableDataRowIndices[0]}`, aLabelTexts.join(", "));
       }
-    },
-    _attachTableRowsUpdater: function _attachTableRowsUpdater(oTable) {
+    }
+    /**
+     * sap.ui.table.Table のスクロール時に、テーブル上のコントロールの ValueState, ValueText を最新化させるためのイベントハンドラをアタッチする。
+     * 
+     * @param oTable - テーブル
+     */
+    _attachTableRowsUpdater(oTable) {
       if (this._sTableIdAttachedRowsUpdated.has(oTable.getId())) {
         return;
       }
@@ -815,8 +990,14 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       oTable.attachFilter(this._clearInValidRowColsInTable, this);
       oTable.attachModelContextChange(this._clearInValidRowColsInTable, this);
       this._sTableIdAttachedRowsUpdated.add(oTable.getId());
-    },
-    _callRegisteredValidator: function _callRegisteredValidator(oControl) {
+    }
+    /**
+     * oControl のバリデーションの直後に実行するように登録済のバリデータ関数を呼び出す。
+     * 
+     * @param oControl - コントロール
+     * @returns true: valid, false: invalid
+     */
+    _callRegisteredValidator(oControl) {
       let isValid = true;
       const sControlId = oControl.getId();
       let hasInvalidCellsInTable = false;
@@ -834,8 +1015,13 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         this._attachTableRowsUpdater(oControl);
       }
       return isValid;
-    },
-    _attachNotRegisteredValidator: function _attachNotRegisteredValidator(oControl) {
+    }
+    /**
+     * oControl に必須チェック用フォーカスアウトバリデータをアタッチする。
+     * 
+     * @param oControl - コントロール
+     */
+    _attachNotRegisteredValidator(oControl) {
       if (!("attachSelectionFinish" in oControl) && !("attachChange" in oControl) && !("attachSelect" in oControl)) {
         // 対象外
         return;
@@ -846,8 +1032,19 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       }
       const sMessageText = this._getRequiredErrorMessageTextByControl(oControl);
       this._internalAttachValidator(oControl, "", sMessageText);
-    },
-    _attachRegisteredValidator: function _attachRegisteredValidator(oControlOrAControls, fnTest, sMessageTextOrAMessageTexts, sValidateFunctionId, bIsGroupedTargetControls, oControlOrAControlsMoreAttachValidator) {
+    }
+    /**
+     * oControl に {@link Validator#registerValidator | registerValidator} や {@link Validator#registerRequiredValidator | registerRequiredValidator} で登録されたフォーカスアウトバリデータをアタッチする。
+     * 
+     * @param oControlOrAControls - コントロールまたはコントロール配列
+     * @param fnTest - アタッチするバリデータ関数
+     * @param sMessageTextOrAMessageTexts - 検証エラーメッセージまたはその配列
+     * @param ValidateFunctionId - fnTest を識別するための任意のID
+     * @param bIsGroupedTargetControls - true: oControlOrAControls を1つのグループとみなして検証は1回だけ（コントロール数分ではない）で、エラーメッセージも1つだけで、エラーステートは全部のコントロールにつくかつかないか（一部だけつくことはない）,
+     *                                   false: oControlOrAControls を1つのグループとみなさない
+     * @param [oControlOrAControlsMoreAttachValidator] - oControlOrAControls 以外に fnTest を追加でアタッチするコントロールの配列
+     */
+    _attachRegisteredValidator(oControlOrAControls, fnTest, sMessageTextOrAMessageTexts, sValidateFunctionId, bIsGroupedTargetControls, oControlOrAControlsMoreAttachValidator) {
       let aControls;
       if (!Array.isArray(oControlOrAControls)) {
         aControls = [oControlOrAControls];
@@ -895,15 +1092,29 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
           }
         }
       }
-    },
-    _isAttachedValidator: function _isAttachedValidator(sControlId, sValidateFunctionId) {
+    }
+    /**
+     * フォーカスアウトバリデータをアタッチ済みかどうかを返す。
+     * 
+     * @param sControlId - コントロールID
+     * @param sValidateFunctionId - {@link Validator#registerValidator | registerValidator} や {@link Validator#registerRequiredValidator | registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は ""
+     * @returns true: フォーカスアウトバリデータをアタッチ済み, false: フォーカスアウトバリデータをアタッチ済みでない
+     */
+    _isAttachedValidator(sControlId, sValidateFunctionId) {
       const aValidateFunctionIds = this._mControlIdAttachedValidator.get(sControlId);
       if (!aValidateFunctionIds) {
         return false;
       }
       return aValidateFunctionIds.includes(sValidateFunctionId);
-    },
-    _internalAttachValidator: function _internalAttachValidator(oControl, sValidateFunctionId, oData) {
+    }
+    /**
+     * フォーカスアウトバリデータをアタッチする。
+     * 
+     * @param oControl - コントロール
+     * @param sValidateFunctionId - {@link Validator#registerValidator | registerValidator} や {@link Validator#registerRequiredValidator | registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は ""
+     * @param oData - アタッチする関数に渡すデータ
+     */
+    _internalAttachValidator(oControl, sValidateFunctionId, oData) {
       const sControlId = oControl.getId();
       const markAttachedValidator = () => {
         const aValidateFunctionIds = this._mControlIdAttachedValidator.get(sControlId);
@@ -930,8 +1141,13 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       } else {
         attachValidator(this._registeredvalidator);
       }
-    },
-    _detachAllValidators: function _detachAllValidators(oControl) {
+    }
+    /**
+     * oControl の、本 Validator によりアタッチされているフォーカスアウトバリデータをデタッチする。
+     * 
+     * @param oControl - コントロール
+     */
+    _detachAllValidators(oControl) {
       const sControlId = oControl.getId();
       const aValidateFunctionIds = this._mControlIdAttachedValidator.get(sControlId);
       if (!aValidateFunctionIds) {
@@ -954,8 +1170,14 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         }
       });
       this._mControlIdAttachedValidator.set(sControlId, []);
-    },
-    _notRegisteredValidator: function _notRegisteredValidator(oEvent, sMessageText) {
+    }
+    /**
+     * 必須チェック用フォーカスアウトバリデータ関数
+     * 
+     * @param oEvent - イベント
+     * @param sMessageText - エラーメッセージ
+     */
+    _notRegisteredValidator(oEvent, sMessageText) {
       const oControl = oEvent.getSource();
       if (!(oControl instanceof Control)) {
         return;
@@ -974,8 +1196,22 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
           this._removeMessageAndValueState(oControl, "");
         }
       }
-    },
-    _registeredvalidator: function _registeredvalidator(oEvent, oData) {
+    }
+    /**
+     * {@link Validator#registerValidator registerValidator} や {@link Validator#registerRequiredValidator registerRequiredValidator} で登録されたフォーカスアウトバリデータ関数。
+     * 1つのコントロールに複数のバリデータを登録した場合でもコントロールにアタッチするイベントハンドラ関数は常にこの _registeredvalidator のみとなり、
+     * 引数の oData がバリデータ毎に異なる値になることでバリデータの内容に応じたバリデーションを行う。
+     * 
+     * @param oEvent - イベント
+     * @param oData - データ
+     * @param oData.targetControl
+     * @param oData.test - バリデータ関数
+     * @param oData.controls - 合わせてエラー状態がセットまたは解除されるコントロールの配列
+     * @param oData.isGroupedTargetControls - true: oData.controls を1つのグループとみなす, false: oData.controls を1つのグループとみなさない
+     * @param oData.messageText - エラーメッセージ
+     * @param oData.validateFunctionId - バリデータ関数を識別するID
+     */
+    _registeredvalidator(oEvent, oData) {
       const oControl = oData.targetControl;
       const oControlOrAControls = oData.controls.length > 1 ? oData.controls : oData.controls[0];
       let isValid;
@@ -1018,11 +1254,26 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
           this._setValueState(oControl, ValueState.Error, oData.messageText);
         }
       }
-    },
-    _isCellInSapUiTableTableBindedJsonModel: function _isCellInSapUiTableTableBindedJsonModel(oControl) {
+    }
+    /**
+     * oControl が JSONModel がバインドされた sap.ui.table.Table 内のセルかどうかを返します。
+     * 
+     * @param oControl - コントロール
+     * @returns true: JSONModel がバインドされた sap.ui.table.Table 内のセル, false: それ以外
+     */
+    _isCellInSapUiTableTableBindedJsonModel(oControl) {
       return oControl.getParent() && oControl.getParent().getParent() instanceof Table && oControl.getParent().getParent().getBinding("rows") && oControl.getParent().getParent().getBinding("rows").getModel() instanceof JSONModel;
-    },
-    _setErrorCellInSapUiTableTable: function _setErrorCellInSapUiTableTable(oControlOrAControls, sMessageText, sValidateFunctionId, isGroupedTargetControls) {
+    }
+
+    /**
+     * sap.ui.table.Table 内のセルについて、バリデーションエラー行・列情報への登録と、MessageModel への登録と ValueState/ValueText のセットを行います。
+     * 
+     * @param oControlOrAControls - sap.ui.table.Table 内のセル
+     * @param sMessageText - メッセージ
+     * @param sValidateFunctionId - registerValidator/registerRequiredValidator で登録したバリデータ関数のID、デフォルトの必須バリデータの場合は ""
+     * @param isGroupedTargetControls
+     */
+    _setErrorCellInSapUiTableTable(oControlOrAControls, sMessageText, sValidateFunctionId, isGroupedTargetControls) {
       // Array.isArray(oControlOrAControls) && !isGroupedTargetControls - テーブル内の同一行内の項目相関バリデーション（e.g. A列がBの場合は、C列はDにしてください） or
       // Array.isArray(oControlOrAControls) && isGroupedTargetControls - テーブル内の同一項目内の相関バリデーション（e.g. A列のいずれかはBにしてください） or
       // !Array.isArray(oControlOrAControls) - テーブル内の単項目バリデーション
@@ -1052,8 +1303,15 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       this._addMessageAndInvalidTableRowCol(aColumns, sTableBindingPath, aTableDataRowIndices, sMessageText, aLabelTexts, sValidateFunctionId);
       aControls.forEach(oCtl => this._setValueState(oCtl, ValueState.Error, sMessageText));
       this._attachTableRowsUpdater(oTable);
-    },
-    _clearErrorCellInSapUiTableTable: function _clearErrorCellInSapUiTableTable(oControlOrAControls, sValidateFunctionId, isGroupedTargetControls) {
+    }
+    /**
+     * sap.ui.table.Table 内のセルについて、保持しているバリデーションエラー行・列情報をクリアし、MessageModel からの削除と ValueState/ValueText のクリアを行います。
+     * 
+     * @param oControlOrAControls - sap.ui.table.Table 内のセル
+     * @param sValidateFunctionId - registerValidator/registerRequiredValidator で登録したバリデータ関数のID、デフォルトの必須バリデータの場合は ""
+     * @param isGroupedTargetControls
+     */
+    _clearErrorCellInSapUiTableTable(oControlOrAControls, sValidateFunctionId, isGroupedTargetControls) {
       let aControls;
       if (!Array.isArray(oControlOrAControls)) {
         aControls = [oControlOrAControls];
@@ -1102,8 +1360,14 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
           this._clearValueStateIfNoErrors(oControlOrAControls, this._resolveMessageTarget(oControlOrAControls));
         }
       }
-    },
-    _validateRequired: function _validateRequired(oControl) {
+    }
+    /**
+     * 引数のコントロールの必須チェックを行う。
+     *
+     * @param oControl - 検証対象のコントロール
+     * @returns true: valid、false: invalid
+     */
+    _validateRequired(oControl) {
       if (!this._isNullValue(oControl)) {
         return true;
       }
@@ -1111,8 +1375,14 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       this._addMessage(oControl, sMessageText);
       this._setValueState(oControl, ValueState.Error, sMessageText);
       return false;
-    },
-    _validateRequiredInSapUiTableTable: function _validateRequiredInSapUiTableTable(oTable) {
+    }
+    /**
+     * sap.ui.table.Table の required な列について、テーブルにバインドされているデータ全行に対して必須チェックを行う。
+     * 
+     * @param oTable - 検証対象のテーブル
+     * @returns true: バリデーションOK, false: バリデーションNG
+     */
+    _validateRequiredInSapUiTableTable(oTable) {
       let isValid = true;
       const oTableBinding = oTable.getBinding("rows");
       const sTableBindingPath = oTableBinding.getPath();
@@ -1145,8 +1415,14 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       }
       oTable.fireRowsUpdated();
       return isValid;
-    },
-    _removeMessageAndValueState: function _removeMessageAndValueState(oControl, sValidateFunctionId) {
+    }
+    /**
+     * メッセージを除去し、oControl に他にエラーがなければエラーステートをクリアする。
+     * 
+     * @param oControl - 対象のコントロール
+     * @param sValidateFunctionId - {@link Validator#registerValidator | registerValidator} や {@link Validator#registerRequiredValidator | registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は ""
+     */
+    _removeMessageAndValueState(oControl, sValidateFunctionId) {
       const oMessageManager = sap.ui.getCore().getMessageManager();
       const oMessageModel = oMessageManager.getMessageModel();
       const sValidatorMessageName = _ValidatorMessage.getMetadata().getName();
@@ -1156,8 +1432,15 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         oMessageManager.removeMessages(oMessage);
       }
       this._clearValueStateIfNoErrors(oControl, this._resolveMessageTarget(oControl));
-    },
-    _clearValueStateIfNoErrors: function _clearValueStateIfNoErrors(oControl, sTargetOrATargets) {
+    }
+    /**
+     * 不正な値を入力された場合、UI5標準のバリデーション(sap.ui.model.type.XXX の constraints によるバリデーション)によりエラーステートがセットされている可能性があるため、
+     * 該当のコントロールにエラーメッセージがまだあるか確認し、ない場合にのみエラーステートをクリアする。
+     * 
+     * @param oControl - 処理対象のコントロール
+     * @param sTargetOrATargets - セットされているメッセージの中から対象のコントロールのメッセージを判別するための Message の target/targets プロパティ値
+     */
+    _clearValueStateIfNoErrors(oControl, sTargetOrATargets) {
       if (!("setValueState" in oControl)) {
         return;
       }
@@ -1197,8 +1480,15 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         }
         this._setValueState(oControl, ValueState.None, null);
       }, 1);
-    },
-    _isChildOrEqualControlId: function _isChildOrEqualControlId(oElement, sParentControlId) {
+    }
+    /**
+     * oElement が sParentControlId のコントロール自身もしくはその子供かどうか判定する。
+     * 
+     * @param oElement - 判定対象のコントロール
+     * @param sParentControlId - 親コントロールID
+     * @returns true: 親コントロール自身かその子供, false: 親コントロールでもその子供でもない
+     */
+    _isChildOrEqualControlId(oElement, sParentControlId) {
       if (oElement.getId() === sParentControlId) {
         return true;
       }
@@ -1210,8 +1500,14 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         oTargetControl = oTargetControl.getParent();
       }
       return false;
-    },
-    _resolveMessageTarget: function _resolveMessageTarget(oControlOrAControls) {
+    }
+    /**
+     * oControlOrAControls に対応する {@link https://sdk.openui5.org/api/sap.ui.core.message.Message | Message} の target 文字列を返す。
+     * 
+     * @param oControlOrAControls - コントロールまたはその配列
+     * @returns target 文字列
+     */
+    _resolveMessageTarget(oControlOrAControls) {
       let aControls = [];
       if (Array.isArray(oControlOrAControls)) {
         aControls = oControlOrAControls;
@@ -1219,28 +1515,28 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         aControls.push(oControlOrAControls);
       }
       const aTargets = aControls.map(oControl => {
-        if (oControl.getBinding("dateValue")) {
+        if (oControl.getBindingInfo("dateValue")) {
           return oControl.getId() + "/dateValue";
         }
-        if (oControl.getBinding("value")) {
+        if (oControl.getBindingInfo("value")) {
           return oControl.getId() + "/value";
         }
-        if (oControl.getBinding("selectedKey")) {
+        if (oControl.getBindingInfo("selectedKey")) {
           return oControl.getId() + "/selectedKey";
         }
-        if (oControl.getBinding("selectedKeys")) {
+        if (oControl.getBindingInfo("selectedKeys")) {
           return oControl.getId() + "/selectedKeys";
         }
-        if (oControl.getBinding("selected")) {
+        if (oControl.getBindingInfo("selected")) {
           return oControl.getId() + "/selected";
         }
-        if (oControl.getBinding("selectedIndex")) {
+        if (oControl.getBindingInfo("selectedIndex")) {
           return oControl.getId() + "/selectedIndex";
         }
-        if (oControl.getBinding("selectedDates")) {
+        if (oControl.getBindingInfo("selectedDates")) {
           return oControl.getId() + "/selectedDates";
         }
-        if (oControl.getBinding("text")) {
+        if (oControl.getBindingInfo("text")) {
           return oControl.getId() + "/text";
         }
         return undefined;
@@ -1249,35 +1545,48 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         return aTargets;
       }
       return aTargets[0];
-    },
-    _resolveBindingPropertyName: function _resolveBindingPropertyName(oControl) {
-      if (oControl.getBinding("dateValue")) {
+    }
+    /**
+     * バインドされているプロパティ名を返します。
+     * 
+     * @param oControl 
+     * @returns バインドされているプロパティ名
+     */
+    _resolveBindingPropertyName(oControl) {
+      if (oControl.getBindingInfo("dateValue")) {
         return "dateValue";
       }
-      if (oControl.getBinding("value")) {
+      if (oControl.getBindingInfo("value")) {
         return "value";
       }
-      if (oControl.getBinding("selectedKey")) {
+      if (oControl.getBindingInfo("selectedKey")) {
         return "selectedKey";
       }
-      if (oControl.getBinding("selectedKeys")) {
+      if (oControl.getBindingInfo("selectedKeys")) {
         return "selectedKeys";
       }
-      if (oControl.getBinding("selected")) {
+      if (oControl.getBindingInfo("selected")) {
         return "selected";
       }
-      if (oControl.getBinding("selectedIndex")) {
+      if (oControl.getBindingInfo("selectedIndex")) {
         return "selectedIndex";
       }
-      if (oControl.getBinding("selectedDates")) {
+      if (oControl.getBindingInfo("selectedDates")) {
         return "selectedDates";
       }
-      if (oControl.getBinding("text")) {
+      if (oControl.getBindingInfo("text")) {
         return "text";
       }
       return undefined;
-    },
-    _isNullValue: function _isNullValue(oControl) {
+    }
+
+    /**
+     * oControl の値が空か判定する。
+     * 
+     * @param oControl - 検証対象のコントロール
+     * @returns true: 値が空, false: 値が空でない
+     */
+    _isNullValue(oControl) {
       if (!("getValue" in oControl) && !("getSelectedKey" in oControl) && !("getSelectedKeys" in oControl) && !("getSelected" in oControl) && !("getSelectedIndex" in oControl) && !("getSelectedDates" in oControl)) {
         // バリデーション対象外
         return false;
@@ -1300,8 +1609,14 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         }
       }
       return true;
-    },
-    _getRequiredErrorMessageTextByControl: function _getRequiredErrorMessageTextByControl(oControl) {
+    }
+    /**
+     * 必須エラーメッセージを返す。
+     * 
+     * @param oControl - コントロール
+     * @returns 必須エラーメッセージ
+     */
+    _getRequiredErrorMessageTextByControl(oControl) {
       const sRequiredInputMessage = "Required to input.";
       const sRequiredSelectMessage = "Required to select.";
 
@@ -1313,14 +1628,27 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         return this._getResourceText(this.RESOURCE_BUNDLE_KEY_REQUIRED_SELECT, sRequiredSelectMessage);
       }
       return this._getResourceText(this.RESOURCE_BUNDLE_KEY_REQUIRED_INPUT, sRequiredInputMessage);
-    },
-    _getResourceText: function _getResourceText(sKey, sDefaultText) {
+    }
+    /**
+     * リソースバンドルからテキストを取得して返す。リソースバンドルが設定されていない場合は sDefaultText を返す。
+     * 
+     * @param sKey - キー
+     * @param sDefaultText - デフォルトのテキスト
+     * @returns テキスト
+     */
+    _getResourceText(sKey, sDefaultText) {
       if (this._resourceBundle) {
         return this._resourceBundle.getText(sKey);
       }
       return sDefaultText;
-    },
-    _getLabelText: function _getLabelText(oControl) {
+    }
+    /**
+     * oControl のラベルテキストを返す。
+     * 
+     * @param oControl - コントロール
+     * @returns ラベルテキスト。ラベルが見つからない場合は undefined
+     */
+    _getLabelText(oControl) {
       // sap.ui.core.LabelEnablement#getReferencingLabels は
       // labelFor 属性で紐づく Label や、sap.ui.layout.form.SimpleForm 内での対象コントロール・エレメントの直前の Label まで取得してくれる。
       // （なお、ariaLabelledBy で参照される Label までは取得してくれない）
@@ -1376,8 +1704,15 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         }
       }
       return undefined;
-    },
-    _addMessage: function _addMessage(oControlOrAControls, sMessageText, sValidateFunctionId) {
+    }
+    /**
+     * {@link https://sdk.openui5.org/api/sap.ui.core.message.MessageManager | MessageManager} にメッセージを追加する。
+     *
+     * @param oControlOrAControls - 検証エラーとなったコントロール
+     * @param sMessageText - エラーメッセージ
+     * @param [sValidateFunctionId] - {@link Validator#registerValidator | registerValidator} や {@link Validator#registerRequiredValidator | registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は "" or undefined
+     */
+    _addMessage(oControlOrAControls, sMessageText, sValidateFunctionId) {
       let oControl;
       let aControls;
       if (Array.isArray(oControlOrAControls)) {
@@ -1407,8 +1742,17 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         validationErrorControlIds: aControls.map(oControl => oControl.getId()),
         validateFunctionId: sValidateFunctionId || ""
       }));
-    },
-    _addMessageByColumn: function _addMessageByColumn(oColumn, sMessageText, sValidateFunctionId, fullTarget, sAdditionalText) {
+    }
+    /**
+     * {@link https://sdk.openui5.org/api/sap.ui.core.message.MessageManager | MessageManager} にメッセージを追加する。
+     *
+     * @param oColumn - 検証エラーとなった Column
+     * @param sMessageText - エラーメッセージ
+     * @param sValidateFunctionId - {@link Validator#registerValidator | registerValidator} や {@link Validator#registerRequiredValidator | registerRequiredValidator} で登録されたバリデータ関数のID。デフォルトの必須バリデータの場合は "" or undefined
+     * @param fullTarget - Message#fullTarget
+     * @param sAdditionalText - Message#additionalText
+     */
+    _addMessageByColumn(oColumn, sMessageText, sValidateFunctionId, fullTarget, sAdditionalText) {
       sap.ui.getCore().getMessageManager().addMessages(new _ValidatorMessage({
         message: sMessageText,
         type: MessageType.Error,
@@ -1419,8 +1763,15 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         validationErrorControlIds: [oColumn.getId()],
         validateFunctionId: sValidateFunctionId || ""
       }));
-    },
-    _setValueState: function _setValueState(oControl, oValueState, sText) {
+    }
+    /**
+     * 引数のコントロールに {@link https://sdk.openui5.org/api/sap.ui.core.ValueState | ValueState} と ValueStateText をセットする。
+     *
+     * @param oControl - セット先のコントロール
+     * @param oValueState - セットするステート
+     * @param sText - セットするステートテキスト
+     */
+    _setValueState(oControl, oValueState, sText) {
       if ("setValueState" in oControl && typeof oControl.setValueState === "function") {
         oControl.setValueState(oValueState);
         if (oValueState === ValueState.Error) {
@@ -1432,17 +1783,34 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       if ("setValueStateText" in oControl && typeof oControl.setValueStateText === "function") {
         oControl.setValueStateText(sText);
       }
-    },
-    _isSetValueStateError: function _isSetValueStateError(oElement) {
+    }
+    /**
+     * 本 Validator によりエラーステートをセットされているかを判定する。
+     * 
+     * @param oElement - エレメント
+     * @returns true: 本 Validator によりエラーステートをセットされている, false: セットされていない
+     */
+    _isSetValueStateError(oElement) {
       return oElement.data(this._CUSTOM_DATA_KEY_FOR_IS_SET_VALUE_STATE_ERROR) === "true";
-    },
-    _markSetValueStateError: function _markSetValueStateError(oElement) {
+    }
+    /**
+     * 本 Validator によりエラーステートをセットしたとマークする。
+     * 
+     * @param oElement - エレメント
+     */
+    _markSetValueStateError(oElement) {
       oElement.data(this._CUSTOM_DATA_KEY_FOR_IS_SET_VALUE_STATE_ERROR, "true");
-    },
-    _unmarkSetValueStateError: function _unmarkSetValueStateError(oElement) {
+    }
+    /**
+     * 本 Validator によりエラーステートをセットしたとマークしていたのを外す。
+     * 
+     * @param oElement - エレメント
+     */
+    _unmarkSetValueStateError(oElement) {
       oElement.data(this._CUSTOM_DATA_KEY_FOR_IS_SET_VALUE_STATE_ERROR, null);
     }
-  });
+  }
+
   /**
    * 本 Validator で MessageManager からメッセージを削除する際に、
    * 本 Validator で追加したメッセージを型で判別可能とするためのメッセージ。
@@ -1450,7 +1818,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
    * @namespace learnin.ui5.validator.Validator
    */
   const _ValidatorMessage = Message.extend("learnin.ui5.validator.Validator._ValidatorMessage", {
-    constructor: function _constructor2(mParameters) {
+    constructor: function _constructor(mParameters) {
       if (mParameters && Array.isArray(mParameters.target)) {
         if (!Message.prototype.getTargets) {
           // Message の target の配列サポートは UI5 1.79からなので、getTargets メソッドがない場合は、独自に配列を保持する。

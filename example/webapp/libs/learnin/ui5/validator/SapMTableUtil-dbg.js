@@ -1,13 +1,16 @@
 "use strict";
 
 sap.ui.define(["sap/m/Table"], function (Table) {
+  /**
+   * sap.m.Table に関するユーティリティクラス
+   */
   class SapMTableUtil {
     /**
     * oControl のラベルテキストを返す。
     * 
-    * @param {sap.ui.core.Control} oControl コントロール
-     * @param {sap.m.ColumnListItem} oColumnListItem oControl の親
-    * @returns {string} ラベルテキスト。ラベルが見つからない場合は undefined
+    * @param oControl - コントロール
+     * @param oColumnListItem - oControl の親
+    * @returns ラベルテキスト。ラベルが見つからない場合は undefined
     */
     static getLabelText(oControl, oColumnListItem) {
       const oTable = oColumnListItem.getParent();
