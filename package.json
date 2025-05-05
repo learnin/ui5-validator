@@ -32,9 +32,12 @@
   "devDependencies": {
     "@types/openui5": "1.108.0",
     "@ui5/cli": "3.1.2",
+    "jsdom": "^24.0.0",
     "typedoc": "^0.27.6",
     "typedoc-plugin-rename-defaults": "^0.7.2",
     "typescript": "5.0.4",
-    "ui5-tooling-transpile": "0.7.12"
+    "ui5-tooling-transpile": "0.7.12",
+    "vitest": "3.1.2",
+    "vitest-environment-ui5": "0.2.1"
   }
 }
