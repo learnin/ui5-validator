@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import Util from "./util";
 
 const [Input, Validator, ValueState] = await new Promise<any>((resolve) => sap.ui.require([
 	"sap/m/Input",
@@ -10,10 +11,10 @@ describe("sap.m.Input に対する validate のテスト", () => {
 	const sut = new Validator();
 	let input: typeof Input;
 
-	beforeEach(() => {
+	beforeEach(async () => {
 		input = new Input({ required: true });
 		input.placeAt(document.body);
-		sap.ui.getCore().applyChanges();
+		await Util.awaitRendering();
 	});
 
 	afterEach(() => {
