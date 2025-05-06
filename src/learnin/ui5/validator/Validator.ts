@@ -1092,7 +1092,7 @@ export default class Validator extends BaseObject {
 											type: MessageType.Error,
 											additionalText: this._getLabelText(oTargetRootControl),
 											processor: new ControlMessageProcessor(),
-											target: this._resolveMessageTarget(oTargetRootControl),
+											target: this._resolveMessageTarget(oTargetRootControl) as string | undefined, // 配列にはならない
 											fullTarget: ""
 										}));
 										if ("setValueState" in oTargetRootControl && typeof oTargetRootControl.setValueState === "function") {
@@ -1857,12 +1857,15 @@ export default class Validator extends BaseObject {
 	 * @param oControl - 処理対象のコントロール
 	 * @param sTargetOrATargets - セットされているメッセージの中から対象のコントロールのメッセージを判別するための Message の target/targets プロパティ値
 	 */
-	private _clearValueStateIfNoErrors(oControl: Control, sTargetOrATargets: string | string[] | undefined): void {
+	private _clearValueStateIfNoErrors(oControl: Control, sTargetOrATargets: string | undefined | (string | undefined)[]): void {
 		if (!("setValueState" in oControl)) {
 			return;
 		}
 		const aTargets = toArray(sTargetOrATargets);
-		if (aTargets.length === 0) {
+		const aValidTargets = aTargets.filter((t): t is string => t !== undefined);
+		if (aValidTargets.length === 0) {
+			// バインドされていない場合は、 constraints も設定されておらず、UI5標準のバリデーションも実行されないため、エラーステートをクリアする。
+			this._setValueState(oControl, ValueState.None, null);
 			return;
 		}
 		// フォーカスアウトによりUI5標準のバリデーションも実行されるため、どちらが先かやメッセージモデルに登録されるタイミング次第で、
@@ -1870,10 +1873,6 @@ export default class Validator extends BaseObject {
 		// TODO: 非同期処理にしても確実とは言えない。Control から sap.ui.model.type.String 等を取得して validateValue を呼べれば非同期にせずとも確実にエラーが残っているか判断できるはずなので可能ならそうした方がよい。
 		setTimeout(() => {
 			const aMessages: Message[] = sap.ui.getCore().getMessageManager().getMessageModel().getProperty("/");
-			const aValidTargets = aTargets.filter((t): t is string => t !== undefined);
-			if (aValidTargets.length === 0) {
-				return;
-			}
 			if (aValidTargets.every(sTarget => aMessages.some(oMessage => (oMessage.getTargets && oMessage.getTargets().includes(sTarget)) || oMessage.getTarget() === sTarget))) {
 				return;
 			}
@@ -1934,7 +1933,7 @@ export default class Validator extends BaseObject {
 	 * @param oControlOrAControls - コントロールまたはその配列
 	 * @returns target 文字列
 	 */
-	private _resolveMessageTarget(oControlOrAControls: Control | Control[]): string | string[] | undefined {
+	private _resolveMessageTarget(oControlOrAControls: Control | Control[]): string | undefined | (string | undefined)[] {
 		let aControls = [];
 		if (Array.isArray(oControlOrAControls)) {
 			aControls = oControlOrAControls;
@@ -1966,11 +1965,11 @@ export default class Validator extends BaseObject {
 			if (oControl.getBindingInfo("text")) {
 				return oControl.getId() + "/text";
 			}
+			// バインドされていない場合
 			return undefined;
 		});
-		if (aTargets.length > 0) {
-			const aValidTargets = aTargets.filter((t): t is string => t !== undefined);
-			return aValidTargets;
+		if (Array.isArray(oControlOrAControls)) {
+			return aTargets;
 		}
 		return aTargets[0];
 	}
@@ -2283,16 +2282,16 @@ class _ValidatorMessage extends Message {
 		type: MessageType,
 		additionalText: string | undefined,
 		processor: MessageProcessor,
-		target: string | string[] | undefined,
+		target: string | undefined | (string | undefined)[],
 		fullTarget: string,
 		validationErrorControlIds: string[],
 		validateFunctionId: string
 	}) {
-		let aOriginalTargets: string[] | undefined;
+		let aOriginalTargets: string[] = [];
 		if (mParameters && Array.isArray(mParameters.target)) {
 			if (!Message.prototype.getTargets) {
 				// Message の target の配列サポートは UI5 1.79からなので、getTargets メソッドがない場合は、独自に配列を保持する。
-				aOriginalTargets = mParameters.target;
+				aOriginalTargets = mParameters.target.filter((t): t is string => t !== undefined);
 
 				if (mParameters.target.length > 0) {
 					mParameters.target = mParameters.target[0];
@@ -2301,9 +2300,15 @@ class _ValidatorMessage extends Message {
 				}
 			}
 		}
-		super(mParameters);
-
-		if (aOriginalTargets) {
+		super({
+			message: mParameters?.message,
+			type: mParameters?.type,
+			additionalText: mParameters?.additionalText,
+			processor: mParameters?.processor,
+			target: Array.isArray(mParameters?.target) ? mParameters?.target.filter((t): t is string => t !== undefined) : mParameters?.target,
+			fullTarget: mParameters?.fullTarget,
+		});
+		if (aOriginalTargets.length > 0) {
 			this.targets = aOriginalTargets;
 		}
 
