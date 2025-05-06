@@ -41,7 +41,7 @@ jobs:
         run: sed -i 's/\/resources\//\/ui5-validator\/demo\/resources\//g' gh-pages/demo/index.html
 
       - name: Generate API document
-        run: npm run doc && mv docs gh-pages/api
+        run: npm run doc-ja && npm run doc-en && mv docs gh-pages/api
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
