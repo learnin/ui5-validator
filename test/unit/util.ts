@@ -7,4 +7,9 @@ export default class Util {
 		// 1.127 以降は　sap/ui/test/utils/nextUIUpdate を使う
         Core.applyChanges();
 	}
+
+	static removeAllMessages() {
+		// 1.118 以降は sap/ui/core/Messaging を使う
+		Core.getMessageManager().removeAllMessages();
+	}
 }
