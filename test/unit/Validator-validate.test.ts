@@ -1,13 +1,15 @@
 import { describe, it, expect, afterEach, beforeAll, afterAll } from "vitest";
 import Util from "./util";
 
-const [ResourceBundle, Input, Label, Page, Select, ValueState, Validator] = await new Promise<any>((resolve) => sap.ui.require([
+const [ResourceBundle, Input, Label, Page, Select, ValueState, JSONModel, StringType, Validator] = await new Promise<any>((resolve) => sap.ui.require([
 	"sap/base/i18n/ResourceBundle",
 	"sap/m/Input",
 	"sap/m/Label",
 	"sap/m/Page",
 	"sap/m/Select",
 	"sap/ui/core/ValueState",
+	"sap/ui/model/json/JSONModel",
+	"sap/ui/model/type/String",
 	"learnin/ui5/validator/Validator-dbg",
 ], (...args: any[]) => resolve(args)));
 
@@ -49,6 +51,9 @@ describe("validate の対象コントロール非依存のテスト", () => {
 			expect(input.getValueStateText()).toBe("必ず入力してください。");
 			expect(select.getValueState()).toBe(ValueState.Error);
 			expect(select.getValueStateText()).toBe("必ず選択してください。");	
+			expect(Util.getAllMessages()).toHaveLength(2);
+			expect(Util.getAllMessages()[0].getMessage()).toBe("必ず入力してください。");
+			expect(Util.getAllMessages()[1].getMessage()).toBe("必ず選択してください。");
 		});
 
 		it("useFocusoutValidation を指定しない場合、validate 後の入力値変更時に必須バリデーションが実行される", async () => {
@@ -61,6 +66,8 @@ describe("validate の対象コントロール非依存のテスト", () => {
 			expect(result).toBe(false);
 			expect(input.getValueState()).toBe(ValueState.Error);
 			expect(input.getValueStateText()).toBe("Required to input.");
+			expect(Util.getAllMessages()).toHaveLength(1);
+			expect(Util.getAllMessages()[0].getMessage()).toBe("Required to input.");
 
 			// 必須エラーになった後、値を入力する。
 			input.setValue("a");
@@ -68,6 +75,7 @@ describe("validate の対象コントロール非依存のテスト", () => {
 
 			expect(input.getValueState()).toBe(ValueState.None);
 			expect(input.getValueStateText()).toBe("");
+			expect(Util.getAllMessages()).toHaveLength(0);
 
 			// 再度、未入力にする。
 			input.setValue("");
@@ -75,6 +83,8 @@ describe("validate の対象コントロール非依存のテスト", () => {
 
 			expect(input.getValueState()).toBe(ValueState.Error);
 			expect(input.getValueStateText()).toBe("Required to input.");
+			expect(Util.getAllMessages()).toHaveLength(1);
+			expect(Util.getAllMessages()[0].getMessage()).toBe("Required to input.");
 		});
 
 		it("useFocusoutValidation = false を指定した場合、validate 後に入力値を変更してもエラーステートは変わらない", async () => {
@@ -107,6 +117,7 @@ describe("validate の対象コントロール非依存のテスト", () => {
 				expect(result).toBe(true);
 				expect(input.getValueState()).toBe(ValueState.None);
 				expect(input.getValueStateText()).toBe("");
+				expect(Util.getAllMessages()).toHaveLength(0);
 			});
 
 			it("enabled=false のコントロールはバリデーションされない", async () => {
@@ -119,6 +130,7 @@ describe("validate の対象コントロール非依存のテスト", () => {
 				expect(result).toBe(true);
 				expect(input.getValueState()).toBe(ValueState.None);
 				expect(input.getValueStateText()).toBe("");
+				expect(Util.getAllMessages()).toHaveLength(0);
 			});
 
 			it("editable=false のコントロールはバリデーションされる", async () => {
@@ -131,6 +143,47 @@ describe("validate の対象コントロール非依存のテスト", () => {
 				expect(result).toBe(false);
 				expect(input.getValueState()).toBe(ValueState.Error);
 				expect(input.getValueStateText()).toBe("Required to input.");
+				expect(Util.getAllMessages()).toHaveLength(1);
+				expect(Util.getAllMessages()[0].getMessage()).toBe("Required to input.");
+			});
+		});
+
+		describe("UI5標準バリデーション利用（isDoConstraintsValidation=true）のテスト", () => {
+			it("constraints 条件が複数の場合、指定されたすべてのUI5標準バリデーションが実行される", async () => {
+				const input = new Input();
+				input.setModel(new JSONModel({value: "abcd"}));
+				input.bindValue({ path: "/value", type: new StringType({}, { maxLength: 3, startsWith: "x" }) });
+				parentPage.addContent(input);
+				await Util.awaitRendering();
+	
+				const result = (new Validator()).validate(input, { isDoConstraintsValidation: true });
+				
+				expect(result).toBe(false);
+				expect(input.getValueState()).toBe(ValueState.Error);
+				expect(input.getValueStateText()).toBe(`Enter a value with no more than 3 characters.. Enter a value starting with "x"..`);
+				expect(Util.getAllMessages()).toHaveLength(1);
+				expect(Util.getAllMessages()[0].getMessage()).toBe(`Enter a value with no more than 3 characters.. Enter a value starting with "x"..`);
+			});
+
+			it("isDoConstraintsValidation=true かつ registerValidator ありの場合、両方のバリデーションが実行され、ValueStateText は registerValidator のエラーメッセージになる", async () => {
+				const input = new Input();
+				input.setModel(new JSONModel({value: "abcd"}));
+				input.bindValue({ path: "/value", type: new StringType({}, { maxLength: 3, startsWith: "x" }) });
+				parentPage.addContent(input);
+				await Util.awaitRendering();
+	
+				const validator = new Validator();
+				const errorMessage = "最後の文字はzである必要があります。";
+				validator.registerValidator((oInput: typeof Input) => oInput.getValue().endsWith("z"), errorMessage, input, input);
+	
+				const result = validator.validate(input, { isDoConstraintsValidation: true });
+				
+				expect(result).toBe(false);
+				expect(input.getValueState()).toBe(ValueState.Error);
+				expect(input.getValueStateText()).toBe(errorMessage);
+				expect(Util.getAllMessages()).toHaveLength(2);
+				expect(Util.getAllMessages()[0].getMessage()).toBe(`Enter a value with no more than 3 characters.. Enter a value starting with "x"..`);
+				expect(Util.getAllMessages()[1].getMessage()).toBe(errorMessage);
 			});
 		});
 	});

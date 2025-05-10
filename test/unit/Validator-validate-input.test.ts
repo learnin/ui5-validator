@@ -29,7 +29,7 @@ describe("sap.m.Input に対する validate のテスト", () => {
 		parentPage.destroy();
 	})
 
-	describe("registerValidator なしの場合", () => {
+	describe("registerRequiredValidator, registerValidator なしの場合", () => {
 		it("required な Input が未入力の場合、バリデーションエラーになる", async () => {
 			const input = new Input({ required: true });
 			parentPage.addContent(input);
@@ -40,6 +40,8 @@ describe("sap.m.Input に対する validate のテスト", () => {
 			expect(result).toBe(false);
 			expect(input.getValueState()).toBe(ValueState.Error);
 			expect(input.getValueStateText()).toBe("Required to input.");
+			expect(Util.getAllMessages()).toHaveLength(1);
+			expect(Util.getAllMessages()[0].getMessage()).toBe("Required to input.");
 		});
 
 		it("required な Input が入力されている場合、バリデーションエラーにならない", async () => {
@@ -53,6 +55,7 @@ describe("sap.m.Input に対する validate のテスト", () => {
 			expect(result).toBe(true);
 			expect(input.getValueState()).toBe(ValueState.None);
 			expect(input.getValueStateText()).toBe("");
+			expect(Util.getAllMessages()).toHaveLength(0);
 		});
 
 		it("required な Label で labelFor 参照されている Input が未入力の場合、バリデーションエラーになる", async () => {
@@ -67,6 +70,8 @@ describe("sap.m.Input に対する validate のテスト", () => {
 			expect(result).toBe(false);
 			expect(input.getValueState()).toBe(ValueState.Error);
 			expect(input.getValueStateText()).toBe("Required to input.");
+			expect(Util.getAllMessages()).toHaveLength(1);
+			expect(Util.getAllMessages()[0].getMessage()).toBe("Required to input.");
 		});
 
 		it("required でない Input が未入力の場合、バリデーションエラーにならない", async () => {
@@ -79,6 +84,7 @@ describe("sap.m.Input に対する validate のテスト", () => {
 			expect(result).toBe(true);
 			expect(input.getValueState()).toBe(ValueState.None);
 			expect(input.getValueStateText()).toBe("");
+			expect(Util.getAllMessages()).toHaveLength(0);
 		});
 
 		it("isDoConstraintsValidation=true の場合、UI5標準バリデーションも実行される", async () => {
@@ -93,6 +99,8 @@ describe("sap.m.Input に対する validate のテスト", () => {
 			expect(result).toBe(false);
 			expect(input.getValueState()).toBe(ValueState.Error);
 			expect(input.getValueStateText()).toBe("Enter a value with no more than 1 characters.");
+			expect(Util.getAllMessages()).toHaveLength(1);
+			expect(Util.getAllMessages()[0].getMessage()).toBe("Enter a value with no more than 1 characters.");
 		});
 	});
 
@@ -110,6 +118,8 @@ describe("sap.m.Input に対する validate のテスト", () => {
 			expect(result).toBe(false);
 			expect(input.getValueState()).toBe(ValueState.Error);
 			expect(input.getValueStateText()).toBe("Required to input.");
+			expect(Util.getAllMessages()).toHaveLength(1);
+			expect(Util.getAllMessages()[0].getMessage()).toBe("Required to input.");
 		});
 
 		it("registerRequiredValidator 対象の required でない Input が入力されている場合、バリデーションエラーにならない", async () => {
@@ -126,6 +136,7 @@ describe("sap.m.Input に対する validate のテスト", () => {
 			expect(result).toBe(true);
 			expect(input.getValueState()).toBe(ValueState.None);
 			expect(input.getValueStateText()).toBe("");
+			expect(Util.getAllMessages()).toHaveLength(0);
 		});
 	});
 
@@ -145,6 +156,8 @@ describe("sap.m.Input に対する validate のテスト", () => {
 			expect(result).toBe(false);
 			expect(input.getValueState()).toBe(ValueState.Error);
 			expect(input.getValueStateText()).toBe(errorMessage);
+			expect(Util.getAllMessages()).toHaveLength(1);
+			expect(Util.getAllMessages()[0].getMessage()).toBe(errorMessage);
 		});
 
 		it("registerValidator 対象の Input に適切な値が入力されている場合、バリデーションエラーにならない", async () => {
@@ -162,6 +175,8 @@ describe("sap.m.Input に対する validate のテスト", () => {
 			expect(result).toBe(true);
 			expect(input.getValueState()).toBe(ValueState.None);
 			expect(input.getValueStateText()).toBe("");
+			expect(Util.getAllMessages()).toHaveLength(0);
 		});
+
 	});
 });
