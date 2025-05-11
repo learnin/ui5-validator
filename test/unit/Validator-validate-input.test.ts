@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach, beforeAll, afterAll } from "vitest";
 import Util from "./util";
+import ControlMessageProcessor from "sap/ui/core/message/ControlMessageProcessor";
 
 const [Input, Label, Page, ValueState, JSONModel, StringType, Validator] = await new Promise<any>((resolve) => sap.ui.require([
 	"sap/m/Input",
@@ -8,7 +9,7 @@ const [Input, Label, Page, ValueState, JSONModel, StringType, Validator] = await
 	"sap/ui/core/ValueState",
 	"sap/ui/model/json/JSONModel",
 	"sap/ui/model/type/String",
-	"learnin/ui5/validator/Validator-dbg",
+	"learnin/ui5/validator/Validator",
 ], (...args: any[]) => resolve(args)));
 
 describe("sap.m.Input に対する validate のテスト", () => {
@@ -30,7 +31,7 @@ describe("sap.m.Input に対する validate のテスト", () => {
 	})
 
 	describe("registerRequiredValidator, registerValidator なしの場合", () => {
-		it("required な Input が未入力の場合、バリデーションエラーになる", async () => {
+		it("bind されていない required な Input が未入力の場合、バリデーションエラーになる", async () => {
 			const input = new Input({ required: true });
 			parentPage.addContent(input);
 			await Util.awaitRendering();
@@ -40,8 +41,29 @@ describe("sap.m.Input に対する validate のテスト", () => {
 			expect(result).toBe(false);
 			expect(input.getValueState()).toBe(ValueState.Error);
 			expect(input.getValueStateText()).toBe("Required to input.");
-			expect(Util.getAllMessages()).toHaveLength(1);
-			expect(Util.getAllMessages()[0].getMessage()).toBe("Required to input.");
+			const messages = Util.getAllMessages();
+			expect(messages).toHaveLength(1);
+			expect(messages[0].getMessage()).toBe("Required to input.");
+			expect(messages[0].fullTarget).toBe("");
+		});
+
+		it("bind されている required な Input が未入力の場合、バリデーションエラーになる", async () => {
+			const input = new Input({ required: true });
+			input.setModel(new JSONModel({val: ""}));
+			input.bindValue({ path: "/val" });
+			parentPage.addContent(input);
+			await Util.awaitRendering();
+
+			const result = (new Validator()).validate(input);
+			
+			expect(result).toBe(false);
+			expect(input.getValueState()).toBe(ValueState.Error);
+			expect(input.getValueStateText()).toBe("Required to input.");
+			const messages = Util.getAllMessages();
+			expect(messages).toHaveLength(1);
+			expect(messages[0].getMessage()).toBe("Required to input.");
+			expect(messages[0].getTarget()).toBe(`${input.getId()}/value`);
+			expect(messages[0].fullTarget).toBe("");
 		});
 
 		it("required な Input が入力されている場合、バリデーションエラーにならない", async () => {
@@ -59,7 +81,8 @@ describe("sap.m.Input に対する validate のテスト", () => {
 		});
 
 		it("required な Label で labelFor 参照されている Input が未入力の場合、バリデーションエラーになる", async () => {
-			const label = new Label({ text: "Label for input1", labelFor: "input1", required: true });
+			const labelText = "Label for input1";
+			const label = new Label({ text: labelText, labelFor: "input1", required: true });
 			const input = new Input({ id: "input1" });
 			parentPage.addContent(label);
 			parentPage.addContent(input);
@@ -70,8 +93,10 @@ describe("sap.m.Input に対する validate のテスト", () => {
 			expect(result).toBe(false);
 			expect(input.getValueState()).toBe(ValueState.Error);
 			expect(input.getValueStateText()).toBe("Required to input.");
-			expect(Util.getAllMessages()).toHaveLength(1);
-			expect(Util.getAllMessages()[0].getMessage()).toBe("Required to input.");
+			const messages = Util.getAllMessages();
+			expect(messages).toHaveLength(1);
+			expect(messages[0].getMessage()).toBe("Required to input.");
+			expect(messages[0].getAdditionalText()).toBe(labelText);
 		});
 
 		it("required でない Input が未入力の場合、バリデーションエラーにならない", async () => {
@@ -89,8 +114,8 @@ describe("sap.m.Input に対する validate のテスト", () => {
 
 		it("isDoConstraintsValidation=true の場合、UI5標準バリデーションも実行される", async () => {
 			const input = new Input();
-			input.setModel(new JSONModel({value: "ab"}));
-			input.bindValue({ path: "/value", type: new StringType({}, { maxLength: 1 }) });
+			input.setModel(new JSONModel({val: "ab"}));
+			input.bindValue({ path: "/val", type: new StringType({}, { maxLength: 1 }) });
 			parentPage.addContent(input);
 			await Util.awaitRendering();
 
@@ -99,8 +124,9 @@ describe("sap.m.Input に対する validate のテスト", () => {
 			expect(result).toBe(false);
 			expect(input.getValueState()).toBe(ValueState.Error);
 			expect(input.getValueStateText()).toBe("Enter a value with no more than 1 characters.");
-			expect(Util.getAllMessages()).toHaveLength(1);
-			expect(Util.getAllMessages()[0].getMessage()).toBe("Enter a value with no more than 1 characters.");
+			const messages = Util.getAllMessages();
+			expect(messages).toHaveLength(1);
+			expect(messages[0].getMessage()).toBe("Enter a value with no more than 1 characters.");
 		});
 	});
 
@@ -118,8 +144,9 @@ describe("sap.m.Input に対する validate のテスト", () => {
 			expect(result).toBe(false);
 			expect(input.getValueState()).toBe(ValueState.Error);
 			expect(input.getValueStateText()).toBe("Required to input.");
-			expect(Util.getAllMessages()).toHaveLength(1);
-			expect(Util.getAllMessages()[0].getMessage()).toBe("Required to input.");
+			const messages = Util.getAllMessages();
+			expect(messages).toHaveLength(1);
+			expect(messages[0].getMessage()).toBe("Required to input.");
 		});
 
 		it("registerRequiredValidator 対象の required でない Input が入力されている場合、バリデーションエラーにならない", async () => {
@@ -156,8 +183,9 @@ describe("sap.m.Input に対する validate のテスト", () => {
 			expect(result).toBe(false);
 			expect(input.getValueState()).toBe(ValueState.Error);
 			expect(input.getValueStateText()).toBe(errorMessage);
-			expect(Util.getAllMessages()).toHaveLength(1);
-			expect(Util.getAllMessages()[0].getMessage()).toBe(errorMessage);
+			const messages = Util.getAllMessages();
+			expect(messages).toHaveLength(1);
+			expect(messages[0].getMessage()).toBe(errorMessage);
 		});
 
 		it("registerValidator 対象の Input に適切な値が入力されている場合、バリデーションエラーにならない", async () => {
