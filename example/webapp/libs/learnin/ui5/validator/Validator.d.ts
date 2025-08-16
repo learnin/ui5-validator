@@ -52,7 +52,7 @@ declare module "learnin/ui5/validator/Validator" {
          * @remarks
          * バリデーション対象が配列の場合、true にすると SyntaxError がスローされる。
          */
-        controlsMoreAttachValidator: Control | Control[];
+        controlsMoreAttachValidator?: Control | Control[];
     };
     /**
      * {@link Validator#registerValidator | registerValidator}, {@link Validator#registerRequiredValidator | registerRequiredValidator} メソッドの引数のバリデーション関数の型
@@ -80,7 +80,7 @@ declare module "learnin/ui5/validator/Validator" {
         targetControlOrControls: Control | Control[];
         validateFunction: (oValidatorInfo: ValidatorInfo) => boolean;
         isGroupedTargetControls: boolean;
-        controlsMoreAttachValidator: Control | Control[];
+        controlsMoreAttachValidator?: Control | Control[];
         isOriginalFunctionIdUndefined: boolean;
         isAttachValidator: boolean;
     };
@@ -152,9 +152,9 @@ declare module "learnin/ui5/validator/Validator" {
          * @public
          */
         constructor(mParameter?: {
-            resourceBundle: ResourceBundle;
-            targetAggregations: string | string[];
-            useFocusoutValidation: boolean;
+            resourceBundle?: ResourceBundle;
+            targetAggregations?: string | string[];
+            useFocusoutValidation?: boolean;
         });
         /**
          * 引数のオブジェクトもしくはその配下のコントロールのバリデーションを行う。
@@ -246,6 +246,7 @@ declare module "learnin/ui5/validator/Validator" {
          *
          * @param oTargetRootControl - 検証対象のコントロールもしくはそれを含むコンテナ
          * @param isDoConstraintsValidation - UI5 標準の constraints バリデーションも実行するか
+         * @param aDoneTargetControlIds - すでに検証済みのコントロールIDの配列
          * @returns true: valid, false: invalid
          */
         private _validate;
@@ -524,7 +525,7 @@ declare module "learnin/ui5/validator/Validator" {
             type: MessageType;
             additionalText: string | undefined;
             processor: MessageProcessor;
-            target: string | string[] | undefined;
+            target: string | undefined | (string | undefined)[];
             fullTarget: string;
             validationErrorControlIds: string[];
             validateFunctionId: string;

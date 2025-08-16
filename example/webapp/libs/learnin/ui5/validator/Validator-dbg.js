@@ -104,6 +104,15 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
     _aTargetAggregations = ["items", "content", "form", "formContainers", "formElements", "fields", "sections", "subSections", "app", "pages", "_grid", "_page", "cells",
     // sap.m.Table -> items -> cells
     "contentAreas"];
+
+    // {@link Validator#registerValidator registerValidator} {@link Validator#registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数情報オブジェクト配列を保持するマップ。
+    _mRegisteredValidator = new Map();
+
+    // フォーカスアウト時のバリデーション関数がアタッチされたコントロールIDを保持するマップ。型は Map<string, string[]>
+    // key: コントロールID,
+    // value: validateFunctionIds アタッチされているバリデータ関数のID（デフォルトの必須バリデータの場合は ""）
+    _mControlIdAttachedValidator = new Map();
+
     // sap.ui.table.Table にバインドされているデータで、バリデーションエラーとなったデータの行・列情報を保持するマップ。型は Map<string, Object[]>
     // key: テーブルID,
     // value: {
@@ -114,6 +123,9 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
     //   validateFunctionId: {string} registerValidator/registerRequiredValidatorで登録されたバリデータID or ""(デフォルトの必須バリデータの場合)
     // }
     _mInvalidTableRowCols = new Map();
+
+    // _invalidTableRowCols を使ってスクロール時に配下のコントロールのValueStateの最新化を行うためのイベントハンドラをアタッチした sap.ui.table.Table のIDのセット
+    _sTableIdAttachedRowsUpdated = new Set();
     /**
      * コンストラクタ
      * 
@@ -131,37 +143,15 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
      */
     constructor(mParameter) {
       super();
-
-      // {@link Validator#registerValidator registerValidator} {@link Validator#registerRequiredValidator registerRequiredValidator} で登録されたバリデータ関数情報オブジェクト配列を保持するマップ。
-      this._mRegisteredValidator = new Map();
-
-      // フォーカスアウト時のバリデーション関数がアタッチされたコントロールIDを保持するマップ。型は Map<string, string[]>
-      // key: コントロールID,
-      // value: validateFunctionIds アタッチされているバリデータ関数のID（デフォルトの必須バリデータの場合は ""）
-      this._mControlIdAttachedValidator = new Map();
-
-      // _invalidTableRowCols を使ってスクロール時に配下のコントロールのValueStateの最新化を行うためのイベントハンドラをアタッチした sap.ui.table.Table のIDのセット
-      this._sTableIdAttachedRowsUpdated = new Set();
-      this._fnDebouncedRenewValueStateInTable = null;
-      if (mParameter && mParameter.resourceBundle) {
-        this._resourceBundle = mParameter.resourceBundle;
-      }
-      if (mParameter && mParameter.targetAggregations) {
-        if (Array.isArray(mParameter.targetAggregations)) {
-          mParameter.targetAggregations.forEach(sTargetAggregation => {
-            if (!this._aTargetAggregations.includes(sTargetAggregation)) {
-              this._aTargetAggregations.push(sTargetAggregation);
-            }
-          });
-        } else {
-          if (!this._aTargetAggregations.includes(mParameter.targetAggregations)) {
-            this._aTargetAggregations.push(mParameter.targetAggregations);
+      this._resourceBundle = mParameter?.resourceBundle;
+      this._useFocusoutValidation = mParameter?.useFocusoutValidation ?? true;
+      if (mParameter?.targetAggregations) {
+        const aTargetAggregations = toArray(mParameter.targetAggregations);
+        aTargetAggregations.forEach(sTargetAggregation => {
+          if (!this._aTargetAggregations.includes(sTargetAggregation)) {
+            this._aTargetAggregations.push(sTargetAggregation);
           }
-        }
-      }
-      this._useFocusoutValidation = true;
-      if (mParameter && mParameter.useFocusoutValidation === false) {
-        this._useFocusoutValidation = false;
+        });
       }
     }
 
@@ -181,8 +171,9 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       if (this._useFocusoutValidation) {
         this._attachValidator(oTargetRootControl);
       }
-      return this._validate(oTargetRootControl, option.isDoConstraintsValidation);
+      return this._validate(oTargetRootControl, option.isDoConstraintsValidation, []);
     }
+
     /**
      * 引数のオブジェクトもしくはその配下のコントロールについて、本クラスにより追加されたメッセージを
      * {@link https://sdk.openui5.org/api/sap.ui.core.message.MessageManager | MessageManager} から除去する。
@@ -215,7 +206,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         }
         aControlIds.forEach(sControlId => {
           const oControl = ElementRegistry.get(sControlId);
-          if (this._isChildOrEqualControlId(oControl, sTargetRootControlId)) {
+          if (oControl && this._isChildOrEqualControlId(oControl, sTargetRootControlId)) {
             oMessageManager.removeMessages(oMessage);
           }
         });
@@ -232,6 +223,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         }
       });
     }
+
     /**
      * 引数のオブジェクトもしくはその配下のコントロールについて、本クラスによりアタッチされた関数をデタッチする。
      * 
@@ -294,7 +286,6 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
     // oTargetControlOrAControls が配列で sMessageTextOrAMessageTexts も配列で要素数が同じはOK
     // oTargetControlOrAControls が配列で sMessageTextOrAMessageTexts がObjectもOK
     // oTargetControlOrAControls がObjectで sMessageTextOrAMessageTexts もObjectもOK
-
     registerValidator(sValidateFunctionIdOrTest, fnTestOrMessageTextOrAMessageTexts, sMessageTextOrAMessageTextsOrTargetControlOrAControls, oTargetControlOrAControlsOrControlValidateBefore, oControlValidateBeforeOrParameter, mParameter) {
       if (typeof sValidateFunctionIdOrTest === "string") {
         return this._registerValidator(false, sValidateFunctionIdOrTest, fnTestOrMessageTextOrAMessageTexts, sMessageTextOrAMessageTextsOrTargetControlOrAControls, oTargetControlOrAControlsOrControlValidateBefore, oControlValidateBeforeOrParameter, mParameter);
@@ -315,12 +306,23 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         isAttachValidator: true,
         isAttachFocusoutValidationImmediately: true,
         isGroupedTargetControls: false,
-        controlsMoreAttachValidator: null
+        controlsMoreAttachValidator: undefined
       };
-      const oParam = Object.assign({}, oDefaultParam, mParameter);
+      const oParam = {
+        isAttachValidator: mParameter?.isAttachValidator ?? oDefaultParam.isAttachValidator,
+        isAttachFocusoutValidationImmediately: mParameter?.isAttachFocusoutValidationImmediately ?? oDefaultParam.isAttachFocusoutValidationImmediately,
+        isGroupedTargetControls: mParameter?.isGroupedTargetControls ?? oDefaultParam.isGroupedTargetControls,
+        controlsMoreAttachValidator: mParameter?.controlsMoreAttachValidator ?? oDefaultParam.controlsMoreAttachValidator // Remains potentially undefined
+      };
+
       let isTargetEqualsSapUiTableColumn = false;
       let fnValidateFunction;
-      if (!Array.isArray(oTargetControlOrAControls) && oTargetControlOrAControls instanceof Column && oTargetControlOrAControls.getParent().getBinding("rows") && oTargetControlOrAControls.getParent().getBinding("rows").getModel() instanceof JSONModel || Array.isArray(oTargetControlOrAControls) && oTargetControlOrAControls[0] instanceof Column && oTargetControlOrAControls[0].getParent().getBinding("rows") && oTargetControlOrAControls[0].getParent().getBinding("rows").getModel() instanceof JSONModel) {
+      const oFirstControl = Array.isArray(oTargetControlOrAControls) ? oTargetControlOrAControls[0] : oTargetControlOrAControls;
+      const isFirstControlColumn = oFirstControl instanceof Column;
+      const oFirstControlParent = isFirstControlColumn ? oFirstControl.getParent() : null;
+      const oFirstControlParentRowsBinding = oFirstControlParent?.getBinding("rows");
+      const isJsonModelBound = oFirstControlParentRowsBinding?.getModel() instanceof JSONModel;
+      if (isJsonModelBound) {
         if (Array.isArray(oTargetControlOrAControls) && oParam.isGroupedTargetControls) {
           // 「とある列の全行の中に○○でかつ、別の列の全行の中にXXの場合、エラーとする」みたいな、列単位でグルーピングかつ複数列に跨った相関バリデーション。
           // 複雑だし、そんなに需要もないかもしれないので、一旦、サポート外とする。
@@ -333,11 +335,15 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
           assertColumnOrColumns(oValidatorInfo.targetControlOrControls);
           const aColumns = toArray(oValidatorInfo.targetControlOrControls);
           const oTable = aColumns[0].getParent();
-          const oTableBinding = oTable.getBinding("rows");
-          const sTableBindingPath = oTableBinding.getPath();
-          const aModelDataRecords = oTableBinding.getModel().getProperty(sTableBindingPath);
+          const oTableBinding = oTable?.getBinding("rows");
+          const sTableBindingPath = oTableBinding?.getPath();
+          const oModel = oTableBinding?.getModel();
+          if (!oModel || !sTableBindingPath) {
+            return true;
+          }
+          const aModelDataRecords = oModel.getProperty(sTableBindingPath);
           const aRows = oTable.getRows();
-          if (aModelDataRecords.length === 0 || aRows.length === 0) {
+          if (!Array.isArray(aModelDataRecords) || aModelDataRecords.length === 0 || aRows.length === 0) {
             return true;
           }
           const sColumnIds = aColumns.map(oColumn => oColumn.getId());
@@ -351,11 +357,11 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
             return true;
           }
           const aTargetCells = aRows[0].getCells().filter((oCell, i) => aVisibledColIndices.includes(i));
-          const aTargetPropertyNames = aTargetCells.map(oTargetCell => this._resolveBindingPropertyName(oTargetCell));
-          if (aTargetPropertyNames.includes(undefined)) {
+          const aTargetPropertyNames = aTargetCells.map(oTargetCell => this._resolveBindingPropertyName(oTargetCell)).filter(name => name !== undefined);
+          if (aTargetPropertyNames.length !== aTargetCells.length) {
             return true;
           }
-          const aLabelTexts = aTargetCells.map(oTargetCell => this._getLabelText(oTargetCell));
+          const aLabelTexts = aTargetCells.map(oTargetCell => this._getLabelText(oTargetCell)).filter(text => text !== undefined);
           const isArrayTargetControl = Array.isArray(oValidatorInfo.targetControlOrControls);
           let isValid = true;
           if (oValidatorInfo.isGroupedTargetControls) {
@@ -366,7 +372,12 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
               // if (isArrayTargetControl) {
               // 	aValues.push(aTargetCells.map((oTargetCell, j) => aModelDataRecords[i][oTargetCell.getBindingPath(aTargetPropertyNames[j])]));
               // } else {
-              aValues.push(aModelDataRecords[i][aTargetCells[0].getBindingPath(aTargetPropertyNames[0])]);
+              const sBindingPath = aTargetCells[0].getBindingPath(aTargetPropertyNames[0]);
+              if (sBindingPath && aModelDataRecords[i] && typeof aModelDataRecords[i] === "object" && sBindingPath in aModelDataRecords[i]) {
+                aValues.push(aModelDataRecords[i][sBindingPath]);
+              } else {
+                aValues.push(undefined);
+              }
               // }
               aTableDataRowIndices.push(i);
             }
@@ -378,9 +389,20 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
             for (let i = 0, n = aModelDataRecords.length; i < n; i++) {
               let aValuesOrValue;
               if (isArrayTargetControl) {
-                aValuesOrValue = aTargetCells.map((oTargetCell, j) => aModelDataRecords[i][oTargetCell.getBindingPath(aTargetPropertyNames[j])]);
+                aValuesOrValue = aTargetCells.map((oTargetCell, j) => {
+                  const sBindingPath = oTargetCell.getBindingPath(aTargetPropertyNames[j]);
+                  if (sBindingPath && aModelDataRecords[i] && typeof aModelDataRecords[i] === "object" && sBindingPath in aModelDataRecords[i]) {
+                    return aModelDataRecords[i][sBindingPath];
+                  }
+                  return undefined;
+                });
               } else {
-                aValuesOrValue = aModelDataRecords[i][aTargetCells[0].getBindingPath(aTargetPropertyNames[0])];
+                const sBindingPath = aTargetCells[0].getBindingPath(aTargetPropertyNames[0]);
+                if (sBindingPath && aModelDataRecords[i] && typeof aModelDataRecords[i] === "object" && sBindingPath in aModelDataRecords[i]) {
+                  aValuesOrValue = aModelDataRecords[i][sBindingPath];
+                } else {
+                  aValuesOrValue = undefined;
+                }
               }
               if (fnTest(aValuesOrValue)) {
                 continue;
@@ -423,8 +445,8 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         };
       }
       const sControlId = oControlValidateBefore.getId();
-      if (this._mRegisteredValidator.has(sControlId)) {
-        const aValidateFunctions = this._mRegisteredValidator.get(sControlId);
+      const aValidateFunctions = this._mRegisteredValidator.get(sControlId);
+      if (aValidateFunctions) {
         const oValidateFunction = aValidateFunctions.find(oValidateFunction => isOriginalFunctionIdUndefined && oValidateFunction.isOriginalFunctionIdUndefined && sMessageTextOrAMessageTexts === oValidateFunction.messageTextOrMessageTexts || !isOriginalFunctionIdUndefined && !oValidateFunction.isOriginalFunctionIdUndefined && oValidateFunction.validateFunctionId === sValidateFunctionId);
         if (oValidateFunction) {
           oValidateFunction.testFunction = fnTest;
@@ -528,11 +550,17 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
     }
     _registerRequiredValidator(sValidateFunctionId, fnTest, oTargetControlOrAControls, oControlValidateBefore, mParameter) {
       const oDefaultParam = {
+        isAttachValidator: true,
         isAttachFocusoutValidationImmediately: false,
         isGroupedTargetControls: false,
-        controlsMoreAttachValidator: null
+        controlsMoreAttachValidator: undefined
       };
-      const oParam = Object.assign({}, oDefaultParam, mParameter);
+      const oParam = {
+        isAttachValidator: mParameter?.isAttachValidator ?? oDefaultParam.isAttachValidator,
+        isAttachFocusoutValidationImmediately: mParameter?.isAttachFocusoutValidationImmediately ?? oDefaultParam.isAttachFocusoutValidationImmediately,
+        isGroupedTargetControls: mParameter?.isGroupedTargetControls ?? oDefaultParam.isGroupedTargetControls,
+        controlsMoreAttachValidator: mParameter?.controlsMoreAttachValidator ?? oDefaultParam.controlsMoreAttachValidator
+      };
       let sMessageTextOrAMessageTexts;
       if (Array.isArray(oTargetControlOrAControls)) {
         if (oParam.controlsMoreAttachValidator) {
@@ -549,6 +577,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       this.registerValidator(sValidateFunctionId, fnTest, sMessageTextOrAMessageTexts, oTargetControlOrAControls, oControlValidateBefore, oParam);
       return this;
     }
+
     /**
      * {@link Validator#registerValidator | registerValidator}, {@link Validator#registerRequiredValidator | registerRequiredValidator} で登録されている関数を登録解除する。
      * 
@@ -560,10 +589,10 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
      */
     unregisterValidator(sValidateFunctionId, oControlValidateBefore) {
       const sControlId = oControlValidateBefore.getId();
-      if (!this._mRegisteredValidator.has(sControlId)) {
+      const aValidateFunctions = this._mRegisteredValidator.get(sControlId);
+      if (!aValidateFunctions) {
         return this;
       }
-      const aValidateFunctions = this._mRegisteredValidator.get(sControlId);
       const iIndex = aValidateFunctions.findIndex(oValidateFunction => oValidateFunction.validateFunctionId === sValidateFunctionId);
       if (iIndex >= 0) {
         aValidateFunctions.splice(iIndex, 1);
@@ -573,6 +602,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       }
       return this;
     }
+
     /**
      * 引数のオブジェクトもしくはその配下のコントロールにバリデータ関数をアタッチする。
      *
@@ -591,13 +621,14 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       if (oTargetRootControl instanceof Control && LabelEnablement.isRequired(oTargetRootControl)) {
         this._attachNotRegisteredValidator(oTargetRootControl);
       }
-      if (this._mRegisteredValidator.has(oTargetRootControl.getId())) {
-        this._mRegisteredValidator.get(oTargetRootControl.getId()).forEach(oValidateFunction => {
-          if (oValidateFunction.isAttachValidator) {
-            if (oTargetRootControl instanceof Table && oTargetRootControl.getBinding("rows") && oTargetRootControl.getBinding("rows").getModel() instanceof JSONModel) {
+      const aRegisteredValidatorInfos = this._mRegisteredValidator.get(oTargetRootControl.getId());
+      if (aRegisteredValidatorInfos) {
+        aRegisteredValidatorInfos.forEach(oValidatorInfo => {
+          if (oValidatorInfo.isAttachValidator) {
+            if (oTargetRootControl instanceof Table && oTargetRootControl.getBinding("rows")?.getModel() instanceof JSONModel) {
               const oTable = oTargetRootControl;
-              if (Array.isArray(oValidateFunction.targetControlOrControls)) {
-                const aColumns = oValidateFunction.targetControlOrControls;
+              if (Array.isArray(oValidatorInfo.targetControlOrControls)) {
+                const aColumns = oValidatorInfo.targetControlOrControls;
                 const sColumnIds = aColumns.map(oColumn => oColumn.getId());
                 const aVisibledColIndices = [];
                 oTable.getColumns().filter(oCol => oCol.getVisible()).forEach((oCol, i) => {
@@ -608,25 +639,25 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
                 if (aVisibledColIndices.length > 0) {
                   oTable.getRows().forEach(oRow => {
                     const aTargetCells = oRow.getCells().filter((oCell, i) => aVisibledColIndices.includes(i));
-                    this._attachRegisteredValidator(aTargetCells, oValidateFunction.testFunction, oValidateFunction.messageTextOrMessageTexts, oValidateFunction.validateFunctionId, oValidateFunction.isGroupedTargetControls, oValidateFunction.controlsMoreAttachValidator);
+                    this._attachRegisteredValidator(aTargetCells, oValidatorInfo.testFunction, oValidatorInfo.messageTextOrMessageTexts, oValidatorInfo.validateFunctionId, oValidatorInfo.isGroupedTargetControls, oValidatorInfo.controlsMoreAttachValidator);
                   });
                 }
               } else {
-                const oColumn = oValidateFunction.targetControlOrControls;
+                const oColumn = oValidatorInfo.targetControlOrControls;
                 const iVisibledColIndex = oTable.getColumns().filter(oCol => oCol.getVisible()).findIndex(oCol => oCol.getId() === oColumn.getId());
                 if (iVisibledColIndex > 0) {
                   const aTargetCells = oTable.getRows().map(oRow => oRow.getCells()[iVisibledColIndex]);
-                  if (oValidateFunction.isGroupedTargetControls) {
-                    this._attachRegisteredValidator(aTargetCells, oValidateFunction.testFunction, oValidateFunction.messageTextOrMessageTexts, oValidateFunction.validateFunctionId, oValidateFunction.isGroupedTargetControls, oValidateFunction.controlsMoreAttachValidator);
+                  if (oValidatorInfo.isGroupedTargetControls) {
+                    this._attachRegisteredValidator(aTargetCells, oValidatorInfo.testFunction, oValidatorInfo.messageTextOrMessageTexts, oValidatorInfo.validateFunctionId, oValidatorInfo.isGroupedTargetControls, oValidatorInfo.controlsMoreAttachValidator);
                   } else {
                     aTargetCells.forEach(oTargetCell => {
-                      this._attachRegisteredValidator(oTargetCell, oValidateFunction.testFunction, oValidateFunction.messageTextOrMessageTexts, oValidateFunction.validateFunctionId, oValidateFunction.isGroupedTargetControls, oValidateFunction.controlsMoreAttachValidator);
+                      this._attachRegisteredValidator(oTargetCell, oValidatorInfo.testFunction, oValidatorInfo.messageTextOrMessageTexts, oValidatorInfo.validateFunctionId, oValidatorInfo.isGroupedTargetControls, oValidatorInfo.controlsMoreAttachValidator);
                     });
                   }
                 }
               }
             } else {
-              this._attachRegisteredValidator(oValidateFunction.targetControlOrControls, oValidateFunction.testFunction, oValidateFunction.messageTextOrMessageTexts, oValidateFunction.validateFunctionId, oValidateFunction.isGroupedTargetControls, oValidateFunction.controlsMoreAttachValidator);
+              this._attachRegisteredValidator(oValidatorInfo.targetControlOrControls, oValidatorInfo.testFunction, oValidatorInfo.messageTextOrMessageTexts, oValidatorInfo.validateFunctionId, oValidatorInfo.isGroupedTargetControls, oValidatorInfo.controlsMoreAttachValidator);
             }
           }
         });
@@ -668,14 +699,23 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         }
       }
     }
+
     /**
      * 引数のオブジェクトとその配下のコントロールのバリデーションを行う。
      *
      * @param oTargetRootControl - 検証対象のコントロールもしくはそれを含むコンテナ
      * @param isDoConstraintsValidation - UI5 標準の constraints バリデーションも実行するか
+     * @param aDoneTargetControlIds - すでに検証済みのコントロールIDの配列
      * @returns true: valid, false: invalid
      */
-    _validate(oTargetRootControl, isDoConstraintsValidation) {
+    _validate(oTargetRootControl, isDoConstraintsValidation, aDoneTargetControlIds) {
+      // コントロールのアグリゲーションを再帰的に処理すると、あるアグリゲーションプロパティのコントロールと、別のアグリゲーションプロパティの子コントロールが同じコントロールになる場合があるため
+      // 処理済のコントロールの場合はスキップする。
+      if (aDoneTargetControlIds.includes(oTargetRootControl.getId())) {
+        return true;
+      } else {
+        aDoneTargetControlIds.push(oTargetRootControl.getId());
+      }
       let isValid = true;
       const sTargetRootControlId = oTargetRootControl.getId();
       if (!((oTargetRootControl instanceof Control || oTargetRootControl instanceof FormContainer || oTargetRootControl instanceof FormElement || oTargetRootControl instanceof IconTabFilter) && oTargetRootControl.getVisible())) {
@@ -705,7 +745,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
               const aCellControls = aRows[i].getCells();
               if (aCellControls) {
                 for (let j = 0; j < aCellControls.length; j++) {
-                  if (!this._validate(aCellControls[j], isDoConstraintsValidation)) {
+                  if (!this._validate(aCellControls[j], isDoConstraintsValidation, aDoneTargetControlIds)) {
                     isValid = false;
                   }
                 }
@@ -723,79 +763,81 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
           }
           if (isDoConstraintsValidation && !this._isNullValue(oTargetRootControl)) {
             const sPropertyName = this._resolveBindingPropertyName(oTargetRootControl);
-            const oBindingInfo = oTargetRootControl.getBindingInfo(sPropertyName);
-            if (oBindingInfo && "type" in oBindingInfo && oBindingInfo.type instanceof SimpleType) {
-              const oType = oBindingInfo.type;
-              const oPropertyInfo = oTargetRootControl.getMetadata().getPropertyLikeSetting(sPropertyName);
-              let sInternalType = null;
-              if ("altTypes" in oPropertyInfo && Array.isArray(oPropertyInfo.altTypes)) {
-                sInternalType = oPropertyInfo.altTypes[0];
-              } else if ("type" in oPropertyInfo) {
-                sInternalType = oPropertyInfo.type;
-              }
-              try {
-                if (sPropertyName === "dateValue" && "getDateValue" in oTargetRootControl && typeof oTargetRootControl.getDateValue === "function") {
-                  if (sInternalType) {
-                    oBindingInfo.type.parseValue(oTargetRootControl.getDateValue(), sInternalType);
-                  }
-                  oBindingInfo.type.validateValue(oTargetRootControl.getDateValue());
-                } else if (sPropertyName === "value" && "getValue" in oTargetRootControl && typeof oTargetRootControl.getValue === "function") {
-                  if (sInternalType) {
-                    oBindingInfo.type.parseValue(oTargetRootControl.getValue(), sInternalType);
-                  }
-                  oBindingInfo.type.validateValue(oTargetRootControl.getValue());
-                } else if (sPropertyName === "selectedKey" && "getSelectedKey" in oTargetRootControl && typeof oTargetRootControl.getSelectedKey === "function") {
-                  if (sInternalType) {
-                    oBindingInfo.type.parseValue(oTargetRootControl.getSelectedKey(), sInternalType);
-                  }
-                  oBindingInfo.type.validateValue(oTargetRootControl.getSelectedKey());
-                } else if (sPropertyName === "selectedKeys" && "getSelectedKeys" in oTargetRootControl && typeof oTargetRootControl.getSelectedKeys === "function") {
-                  if (sInternalType) {
-                    oBindingInfo.type.parseValue(oTargetRootControl.getSelectedKeys(), sInternalType);
-                  }
-                  oBindingInfo.type.validateValue(oTargetRootControl.getSelectedKeys());
-                } else if (sPropertyName === "selected" && "getSelected" in oTargetRootControl && typeof oTargetRootControl.getSelected === "function") {
-                  if (sInternalType) {
-                    oBindingInfo.type.parseValue(oTargetRootControl.getSelected(), sInternalType);
-                  }
-                  oBindingInfo.type.validateValue(oTargetRootControl.getSelected());
-                } else if (sPropertyName === "selectedIndex" && "getSelectedIndex" in oTargetRootControl && typeof oTargetRootControl.getSelectedIndex === "function") {
-                  if (sInternalType) {
-                    oBindingInfo.type.parseValue(oTargetRootControl.getSelectedIndex(), sInternalType);
-                  }
-                  oBindingInfo.type.validateValue(oTargetRootControl.getSelectedIndex());
-                } else if (sPropertyName === "selectedDates" && "getSelectedDates" in oTargetRootControl && typeof oTargetRootControl.getSelectedDates === "function") {
-                  if (sInternalType) {
-                    oBindingInfo.type.parseValue(oTargetRootControl.getSelectedDates(), sInternalType);
-                  }
-                  oBindingInfo.type.validateValue(oTargetRootControl.getSelectedDates());
-                } else if (sPropertyName === "text" && "getText" in oTargetRootControl && typeof oTargetRootControl.getText === "function") {
-                  if (sInternalType) {
-                    oBindingInfo.type.parseValue(oTargetRootControl.getText(), sInternalType);
-                  }
-                  oBindingInfo.type.validateValue(oTargetRootControl.getText());
+            if (sPropertyName) {
+              const oBindingInfo = oTargetRootControl.getBindingInfo(sPropertyName);
+              if (oBindingInfo && "type" in oBindingInfo && oBindingInfo.type instanceof SimpleType) {
+                const oType = oBindingInfo.type;
+                const oPropertyInfo = oTargetRootControl.getMetadata().getPropertyLikeSetting(sPropertyName);
+                let sInternalType = null;
+                if (oPropertyInfo && "altTypes" in oPropertyInfo && Array.isArray(oPropertyInfo.altTypes)) {
+                  sInternalType = oPropertyInfo.altTypes[0];
+                } else if (oPropertyInfo && "type" in oPropertyInfo && typeof oPropertyInfo.type === "string") {
+                  sInternalType = oPropertyInfo.type;
                 }
-              } catch (err) {
-                if (err instanceof ParseException || err instanceof ValidateException) {
-                  if ("message" in err && typeof err.message === "string") {
+                try {
+                  if (sPropertyName === "dateValue" && "getDateValue" in oTargetRootControl && typeof oTargetRootControl.getDateValue === "function") {
+                    if (sInternalType) {
+                      oBindingInfo.type.parseValue(oTargetRootControl.getDateValue(), sInternalType);
+                    }
+                    oBindingInfo.type.validateValue(oTargetRootControl.getDateValue());
+                  } else if (sPropertyName === "value" && "getValue" in oTargetRootControl && typeof oTargetRootControl.getValue === "function") {
+                    if (sInternalType) {
+                      oBindingInfo.type.parseValue(oTargetRootControl.getValue(), sInternalType);
+                    }
+                    oBindingInfo.type.validateValue(oTargetRootControl.getValue());
+                  } else if (sPropertyName === "selectedKey" && "getSelectedKey" in oTargetRootControl && typeof oTargetRootControl.getSelectedKey === "function") {
+                    if (sInternalType) {
+                      oBindingInfo.type.parseValue(oTargetRootControl.getSelectedKey(), sInternalType);
+                    }
+                    oBindingInfo.type.validateValue(oTargetRootControl.getSelectedKey());
+                  } else if (sPropertyName === "selectedKeys" && "getSelectedKeys" in oTargetRootControl && typeof oTargetRootControl.getSelectedKeys === "function") {
+                    if (sInternalType) {
+                      oBindingInfo.type.parseValue(oTargetRootControl.getSelectedKeys(), sInternalType);
+                    }
+                    oBindingInfo.type.validateValue(oTargetRootControl.getSelectedKeys());
+                  } else if (sPropertyName === "selected" && "getSelected" in oTargetRootControl && typeof oTargetRootControl.getSelected === "function") {
+                    if (sInternalType) {
+                      oBindingInfo.type.parseValue(oTargetRootControl.getSelected(), sInternalType);
+                    }
+                    oBindingInfo.type.validateValue(oTargetRootControl.getSelected());
+                  } else if (sPropertyName === "selectedIndex" && "getSelectedIndex" in oTargetRootControl && typeof oTargetRootControl.getSelectedIndex === "function") {
+                    if (sInternalType) {
+                      oBindingInfo.type.parseValue(oTargetRootControl.getSelectedIndex(), sInternalType);
+                    }
+                    oBindingInfo.type.validateValue(oTargetRootControl.getSelectedIndex());
+                  } else if (sPropertyName === "selectedDates" && "getSelectedDates" in oTargetRootControl && typeof oTargetRootControl.getSelectedDates === "function") {
+                    if (sInternalType) {
+                      oBindingInfo.type.parseValue(oTargetRootControl.getSelectedDates(), sInternalType);
+                    }
+                    oBindingInfo.type.validateValue(oTargetRootControl.getSelectedDates());
+                  } else if (sPropertyName === "text" && "getText" in oTargetRootControl && typeof oTargetRootControl.getText === "function") {
+                    if (sInternalType) {
+                      oBindingInfo.type.parseValue(oTargetRootControl.getText(), sInternalType);
+                    }
+                    oBindingInfo.type.validateValue(oTargetRootControl.getText());
+                  }
+                } catch (err) {
+                  if ((err instanceof ParseException || err instanceof ValidateException) && "message" in err && typeof err.message === "string") {
                     // すでにメッセージがある場合は追加しない。
                     const oMessageManager = sap.ui.getCore().getMessageManager();
                     const sValidatorMessageName = _ValidatorMessage.getMetadata().getName();
-                    const existsMessage = oMessageManager.getMessageModel().getProperty("/").some(oMsg => !BaseObject.isA(oMsg, sValidatorMessageName) && oMsg.getControlId() === oTargetRootControl.getId() && oMsg.getMessage() === err.message);
+                    const sErrorMessage = err.message;
+                    const existsMessage = oMessageManager.getMessageModel().getProperty("/").some(oMsg => !BaseObject.isA(oMsg, sValidatorMessageName) && oMsg.getControlId() === oTargetRootControl.getId() && oMsg.getMessage() === sErrorMessage);
                     if (!existsMessage) {
                       oMessageManager.addMessages(new Message({
-                        message: err.message,
+                        message: sErrorMessage,
                         type: MessageType.Error,
                         additionalText: this._getLabelText(oTargetRootControl),
                         processor: new ControlMessageProcessor(),
                         target: this._resolveMessageTarget(oTargetRootControl),
+                        // 配列にはならない
                         fullTarget: ""
                       }));
                       if ("setValueState" in oTargetRootControl && typeof oTargetRootControl.setValueState === "function") {
                         oTargetRootControl.setValueState(ValueState.Error);
                       }
                       if ("setValueStateText" in oTargetRootControl && typeof oTargetRootControl.setValueStateText === "function") {
-                        oTargetRootControl.setValueStateText(err.message);
+                        oTargetRootControl.setValueStateText(sErrorMessage);
                       }
                     }
                     isValid = false;
@@ -815,13 +857,13 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
             for (let j = 0; j < aControlAggregation.length; j++) {
               const oControlAggregation = aControlAggregation[j];
               if (oControlAggregation instanceof Control || oControlAggregation instanceof FormContainer || oControlAggregation instanceof FormElement || oControlAggregation instanceof IconTabFilter) {
-                if (!this._validate(oControlAggregation, isDoConstraintsValidation)) {
+                if (!this._validate(oControlAggregation, isDoConstraintsValidation, aDoneTargetControlIds)) {
                   isValid = false;
                 }
               }
             }
           } else if (aControlAggregation instanceof Control || aControlAggregation instanceof FormContainer || aControlAggregation instanceof FormElement || aControlAggregation instanceof IconTabFilter) {
-            if (!this._validate(aControlAggregation, isDoConstraintsValidation)) {
+            if (!this._validate(aControlAggregation, isDoConstraintsValidation, aDoneTargetControlIds)) {
               isValid = false;
             }
           }
@@ -832,6 +874,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       }
       return isValid;
     }
+
     /**
      * sap.ui.table.Table#indexOfColumn や #getColumns で使う非表示列を含む列インデックス値から
      * sap.ui.table.Row#indexOfCell や #getCells で使う非表示列を除いた列インデックス値へ変換する
@@ -863,6 +906,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       }
       return results;
     }
+
     /**
      * sap.ui.table.Table#rowsUpdated イベント用のハンドラ
      * テーブルの画面に表示されている行について、ValueState, ValueText を最新化する。
@@ -906,13 +950,20 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
           continue;
         }
         const iVisibledColIndex = this._toVisibledColumnIndex(oTable, oTable.indexOfColumn(oColumn))[0];
-        const oInvalidRow = oTable.getRows().find(oRow => oRow.getCells()[iVisibledColIndex].getBindingContext(sTableModelName).getPath() === aInvalidRowCols[i].rowPath);
+        const oInvalidRow = oTable.getRows().find(oRow => {
+          const oCell = oRow.getCells()[iVisibledColIndex];
+          const oContext = oCell?.getBindingContext(sTableModelName);
+          return oContext?.getPath() === aInvalidRowCols[i].rowPath;
+        });
         if (oInvalidRow) {
           const oInvalidCell = oInvalidRow.getCells()[iVisibledColIndex];
-          this._setValueState(oInvalidCell, ValueState.Error, aInvalidRowCols[i].message);
+          if (oInvalidCell) {
+            this._setValueState(oInvalidCell, ValueState.Error, aInvalidRowCols[i].message);
+          }
         }
       }
     }
+
     /**
      * sap.ui.table.Table#sort や #filter, #modelContextChange イベント用のハンドラ
      * これらのイベントが発生した場合は this._mInvalidTableRowCols に保持しているバリデーションエラーの行インデックスとテーブルのデータの行が合わなくなってしまうため
@@ -930,6 +981,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         this._mInvalidTableRowCols.delete(sTableId);
       }
     }
+
     /**
      * sap.ui.table.Table にバインドされているデータについて、バリデーションエラーとなった行・列情報をセットし、 MessageModel に Message を追加する。
      * 
@@ -944,26 +996,29 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       let hasValidationError = false;
       const aMessageTexts = toArray(sMessageTextOrAMessageTexts);
       aColumns.forEach((oColumn, i) => {
-        const sTableId = oColumn.getParent().getId();
-        const sColId = oColumn.getId();
-        let aInvalidRowCols = this._mInvalidTableRowCols.get(sTableId);
-        if (!aInvalidRowCols) {
-          aInvalidRowCols = [];
-          this._mInvalidTableRowCols.set(sTableId, aInvalidRowCols);
-        }
-        aTableDataRowIndices.forEach(iTableDataRowIndex => {
-          if (!aInvalidRowCols.some(oInvalidRowCol => oInvalidRowCol.rowIndex === iTableDataRowIndex && oInvalidRowCol.columnId === sColId && oInvalidRowCol.validateFunctionId === sValidateFunctionId)) {
-            aInvalidRowCols.push({
-              rowPath: `${sTableBindingPath}/${iTableDataRowIndex}`,
-              rowIndex: iTableDataRowIndex,
-              columnId: sColId,
-              message: aMessageTexts[i],
-              validateFunctionId: sValidateFunctionId
-            });
-          } else if (i === 0) {
-            hasValidationError = true;
+        const oTable = oColumn.getParent();
+        if (oTable) {
+          const sTableId = oTable.getId();
+          const sColId = oColumn.getId();
+          let aInvalidRowCols = this._mInvalidTableRowCols.get(sTableId);
+          if (!aInvalidRowCols) {
+            aInvalidRowCols = [];
+            this._mInvalidTableRowCols.set(sTableId, aInvalidRowCols);
           }
-        });
+          aTableDataRowIndices.forEach(iTableDataRowIndex => {
+            if (aInvalidRowCols && !aInvalidRowCols.some(oInvalidRowCol => oInvalidRowCol.rowIndex === iTableDataRowIndex && oInvalidRowCol.columnId === sColId && oInvalidRowCol.validateFunctionId === sValidateFunctionId)) {
+              aInvalidRowCols.push({
+                rowPath: `${sTableBindingPath}/${iTableDataRowIndex}`,
+                rowIndex: iTableDataRowIndex,
+                columnId: sColId,
+                message: aMessageTexts[i],
+                validateFunctionId: sValidateFunctionId
+              });
+            } else if (i === 0) {
+              hasValidationError = true;
+            }
+          });
+        }
       });
       if (!hasValidationError) {
         // fullTarget にセットするのは 例えば以下で1行目がエラーなら "/data/0" となる
@@ -973,6 +1028,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         this._addMessageByColumn(aColumns[0], aMessageTexts[0], sValidateFunctionId, `${sTableBindingPath}/${aTableDataRowIndices[0]}`, aLabelTexts.join(", "));
       }
     }
+
     /**
      * sap.ui.table.Table のスクロール時に、テーブル上のコントロールの ValueState, ValueText を最新化させるためのイベントハンドラをアタッチする。
      * 
@@ -991,6 +1047,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       oTable.attachModelContextChange(this._clearInValidRowColsInTable, this);
       this._sTableIdAttachedRowsUpdated.add(oTable.getId());
     }
+
     /**
      * oControl のバリデーションの直後に実行するように登録済のバリデータ関数を呼び出す。
      * 
@@ -1001,8 +1058,9 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       let isValid = true;
       const sControlId = oControl.getId();
       let hasInvalidCellsInTable = false;
-      if (this._mRegisteredValidator.has(sControlId)) {
-        this._mRegisteredValidator.get(sControlId).forEach(oRegisteredValidatorInfo => {
+      const aRegisteredValidatorInfos = this._mRegisteredValidator.get(sControlId);
+      if (aRegisteredValidatorInfos) {
+        aRegisteredValidatorInfos.forEach(oRegisteredValidatorInfo => {
           if (!oRegisteredValidatorInfo.validateFunction(oRegisteredValidatorInfo)) {
             isValid = false;
             if (oControl instanceof Table) {
@@ -1016,6 +1074,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       }
       return isValid;
     }
+
     /**
      * oControl に必須チェック用フォーカスアウトバリデータをアタッチする。
      * 
@@ -1033,6 +1092,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       const sMessageText = this._getRequiredErrorMessageTextByControl(oControl);
       this._internalAttachValidator(oControl, "", sMessageText);
     }
+
     /**
      * oControl に {@link Validator#registerValidator | registerValidator} や {@link Validator#registerRequiredValidator | registerRequiredValidator} で登録されたフォーカスアウトバリデータをアタッチする。
      * 
@@ -1093,6 +1153,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         }
       }
     }
+
     /**
      * フォーカスアウトバリデータをアタッチ済みかどうかを返す。
      * 
@@ -1107,6 +1168,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       }
       return aValidateFunctionIds.includes(sValidateFunctionId);
     }
+
     /**
      * フォーカスアウトバリデータをアタッチする。
      * 
@@ -1142,6 +1204,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         attachValidator(this._registeredvalidator);
       }
     }
+
     /**
      * oControl の、本 Validator によりアタッチされているフォーカスアウトバリデータをデタッチする。
      * 
@@ -1171,6 +1234,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       });
       this._mControlIdAttachedValidator.set(sControlId, []);
     }
+
     /**
      * 必須チェック用フォーカスアウトバリデータ関数
      * 
@@ -1197,6 +1261,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         }
       }
     }
+
     /**
      * {@link Validator#registerValidator registerValidator} や {@link Validator#registerRequiredValidator registerRequiredValidator} で登録されたフォーカスアウトバリデータ関数。
      * 1つのコントロールに複数のバリデータを登録した場合でもコントロールにアタッチするイベントハンドラ関数は常にこの _registeredvalidator のみとなり、
@@ -1218,14 +1283,35 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       if (this._isCellInSapUiTableTableBindedJsonModel(oControl) && oData.isGroupedTargetControls) {
         // バリデーション対象がテーブル内のセルで isGroupedTargetControls = true の場合は、列全体に対してのバリデーションとなるが、
         // 列のコントロールをすべて渡しても、スクロールで見えていない行の値が取得できないので、テーブルにバインドされている該当列の値をすべて取得してバリデータ関数に渡す。
-        const oTable = oControl.getParent().getParent();
+        const oTable = oControl.getParent()?.getParent();
+        if (!(oTable instanceof Table)) {
+          return;
+        }
         const oTableBinding = oTable.getBinding("rows");
-        const sTableBindingPath = oTableBinding.getPath();
-        const aModelDataRecords = oTableBinding.getModel().getProperty(sTableBindingPath);
+        const sTableBindingPath = oTableBinding?.getPath();
+        const oModel = oTableBinding?.getModel();
+        if (!oModel || !sTableBindingPath) {
+          return;
+        }
+        const aModelDataRecords = oModel.getProperty(sTableBindingPath);
+        if (!Array.isArray(aModelDataRecords)) {
+          return;
+        }
         const sPropertyName = this._resolveBindingPropertyName(oControl);
+        if (sPropertyName === undefined) {
+          return;
+        }
+        const sBindingPath = oControl.getBindingPath(sPropertyName);
+        if (!sBindingPath) {
+          return;
+        }
         const aValues = [];
         for (let i = 0; i < aModelDataRecords.length; i++) {
-          aValues.push(aModelDataRecords[i][oControl.getBindingPath(sPropertyName)]);
+          if (aModelDataRecords[i] && typeof aModelDataRecords[i] === "object" && sBindingPath in aModelDataRecords[i]) {
+            aValues.push(aModelDataRecords[i][sBindingPath]);
+          } else {
+            aValues.push(undefined);
+          }
         }
         isValid = oData.test(aValues);
       } else {
@@ -1255,6 +1341,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         }
       }
     }
+
     /**
      * oControl が JSONModel がバインドされた sap.ui.table.Table 内のセルかどうかを返します。
      * 
@@ -1262,7 +1349,8 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
      * @returns true: JSONModel がバインドされた sap.ui.table.Table 内のセル, false: それ以外
      */
     _isCellInSapUiTableTableBindedJsonModel(oControl) {
-      return oControl.getParent() && oControl.getParent().getParent() instanceof Table && oControl.getParent().getParent().getBinding("rows") && oControl.getParent().getParent().getBinding("rows").getModel() instanceof JSONModel;
+      const oTable = oControl.getParent()?.getParent();
+      return oTable instanceof Table && oTable.getBinding("rows")?.getModel() instanceof JSONModel;
     }
 
     /**
@@ -1286,24 +1374,34 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       if (!(oTable instanceof Table)) {
         return;
       }
-      const aVisibledColIndices = aControls.map(oControl => oRow.indexOfCell(oControl));
+      const aVisibledColIndices = aControls.map(oControl => oRow.indexOfCell(oControl)).filter(index => index !== -1);
       const aColumns = oTable.getColumns().filter(oColumn => oColumn.getVisible()).filter((oCol, i) => aVisibledColIndices.includes(i));
       const oTableBinding = oTable.getBinding("rows");
+      if (!oTableBinding) {
+        return;
+      }
       const sTableBindingPath = oTableBinding.getPath();
+      if (!sTableBindingPath) {
+        return;
+      }
       const iRowIndex = oRow.getIndex();
-      const aLabelTexts = aControls.map(oControl => this._getLabelText(oControl));
+      const aLabelTexts = aControls.map(oControl => this._getLabelText(oControl)).filter(text => text !== undefined);
       let aTableDataRowIndices = [iRowIndex];
       if (Array.isArray(oControlOrAControls) && isGroupedTargetControls) {
-        const iModelDataRecordsCount = oTableBinding.getModel().getProperty(sTableBindingPath).length;
+        const aModelDataRecords = oTableBinding.getModel()?.getProperty(sTableBindingPath);
         aTableDataRowIndices = [];
-        for (let i = 0; i < iModelDataRecordsCount; i++) {
-          aTableDataRowIndices.push(i);
+        if (Array.isArray(aModelDataRecords)) {
+          const iModelDataRecordsCount = aModelDataRecords.length;
+          for (let i = 0; i < iModelDataRecordsCount; i++) {
+            aTableDataRowIndices.push(i);
+          }
         }
       }
       this._addMessageAndInvalidTableRowCol(aColumns, sTableBindingPath, aTableDataRowIndices, sMessageText, aLabelTexts, sValidateFunctionId);
       aControls.forEach(oCtl => this._setValueState(oCtl, ValueState.Error, sMessageText));
       this._attachTableRowsUpdater(oTable);
     }
+
     /**
      * sap.ui.table.Table 内のセルについて、保持しているバリデーションエラー行・列情報をクリアし、MessageModel からの削除と ValueState/ValueText のクリアを行います。
      * 
@@ -1335,7 +1433,11 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       }
       const sTableModelName = oTable.getBindingInfo("rows").model;
       const sTableBindingPath = oTable.getBinding("rows").getPath();
-      const aRowBindingPaths = aVisibledColIndices.map(iVisibledColIndex => oRow.getCells()[iVisibledColIndex].getBindingContext(sTableModelName).getPath());
+      const aRowBindingPaths = aVisibledColIndices.map(iVisibledColIndex => {
+        const oCell = oRow.getCells()[iVisibledColIndex];
+        const oContext = oCell?.getBindingContext(sTableModelName);
+        return oContext?.getPath();
+      }).filter(path => path !== undefined);
       if (Array.isArray(oControlOrAControls) && isGroupedTargetControls) {
         // 列単位でのエラークリアとなるので、行は無視して、列とバリデーション関数IDが一致するものは全部削除する。
         aInvalidRowCols = aInvalidRowCols.filter(oInvalidRowCol => !aColumnIds.includes(oInvalidRowCol.columnId) || oInvalidRowCol.validateFunctionId !== sValidateFunctionId);
@@ -1361,6 +1463,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         }
       }
     }
+
     /**
      * 引数のコントロールの必須チェックを行う。
      *
@@ -1376,6 +1479,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       this._setValueState(oControl, ValueState.Error, sMessageText);
       return false;
     }
+
     /**
      * sap.ui.table.Table の required な列について、テーブルにバインドされているデータ全行に対して必須チェックを行う。
      * 
@@ -1394,17 +1498,23 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
           const aRequiredPropertyNames = aRequiredCells.map(requiredCell => this._resolveBindingPropertyName(requiredCell));
           for (let i = 0; i < aModelDataRecords.length; i++) {
             for (let j = 0; j < aRequiredCells.length; j++) {
-              if (!aRequiredPropertyNames[j]) {
+              const sRequiredPropertyName = aRequiredPropertyNames[j];
+              if (!sRequiredPropertyName) {
                 continue;
               }
-              const oValue = aModelDataRecords[i][aRequiredCells[j].getBindingPath(aRequiredPropertyNames[j])];
-              if (aRequiredPropertyNames[j] === "selectedIndex" && oValue < 0 || aRequiredPropertyNames[j] !== "selectedIndex" && (oValue === "" || oValue === null || oValue === undefined)) {
+              const sBindingPath = aRequiredCells[j].getBindingPath(sRequiredPropertyName);
+              const oValue = sBindingPath && aModelDataRecords[i] && typeof aModelDataRecords[i] === "object" && sBindingPath in aModelDataRecords[i] ? aModelDataRecords[i][sBindingPath] : undefined;
+              if (sRequiredPropertyName === "selectedIndex" && typeof oValue === "number" && oValue < 0 || sRequiredPropertyName !== "selectedIndex" && (oValue === "" || oValue === null || oValue === undefined)) {
                 isValid = false;
                 const sMessageText = this._getRequiredErrorMessageTextByControl(aRequiredCells[j]);
                 const iVisibledColIndex = aRows[0].indexOfCell(aRequiredCells[j]);
+                if (iVisibledColIndex === -1) {
+                  continue;
+                }
                 // oRow.indexOfCell では visible=false のカラムはスキップされているのでインデックス値を合わせるためフィルタする
                 const oColumn = oTable.getColumns().filter(oCol => oCol.getVisible())[iVisibledColIndex];
-                this._addMessageAndInvalidTableRowCol([oColumn], sTableBindingPath, [i], sMessageText, [this._getLabelText(aRequiredCells[j])], "");
+                const sLabelText = this._getLabelText(aRequiredCells[j]);
+                this._addMessageAndInvalidTableRowCol([oColumn], sTableBindingPath, [i], sMessageText, sLabelText ? [sLabelText] : [], "");
               }
             }
           }
@@ -1416,6 +1526,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       oTable.fireRowsUpdated();
       return isValid;
     }
+
     /**
      * メッセージを除去し、oControl に他にエラーがなければエラーステートをクリアする。
      * 
@@ -1433,6 +1544,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       }
       this._clearValueStateIfNoErrors(oControl, this._resolveMessageTarget(oControl));
     }
+
     /**
      * 不正な値を入力された場合、UI5標準のバリデーション(sap.ui.model.type.XXX の constraints によるバリデーション)によりエラーステートがセットされている可能性があるため、
      * 該当のコントロールにエラーメッセージがまだあるか確認し、ない場合にのみエラーステートをクリアする。
@@ -1445,7 +1557,10 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         return;
       }
       const aTargets = toArray(sTargetOrATargets);
-      if (aTargets.length === 0) {
+      const aValidTargets = aTargets.filter(t => t !== undefined);
+      if (aValidTargets.length === 0) {
+        // バインドされていない場合は、 constraints も設定されておらず、UI5標準のバリデーションも実行されないため、エラーステートをクリアする。
+        this._setValueState(oControl, ValueState.None, null);
         return;
       }
       // フォーカスアウトによりUI5標準のバリデーションも実行されるため、どちらが先かやメッセージモデルに登録されるタイミング次第で、
@@ -1453,7 +1568,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       // TODO: 非同期処理にしても確実とは言えない。Control から sap.ui.model.type.String 等を取得して validateValue を呼べれば非同期にせずとも確実にエラーが残っているか判断できるはずなので可能ならそうした方がよい。
       setTimeout(() => {
         const aMessages = sap.ui.getCore().getMessageManager().getMessageModel().getProperty("/");
-        if (aTargets.every(sTarget => aMessages.some(oMessage => oMessage.getTargets && oMessage.getTargets().includes(sTarget) || oMessage.getTarget() === sTarget))) {
+        if (aValidTargets.every(sTarget => aMessages.some(oMessage => oMessage.getTargets && oMessage.getTargets().includes(sTarget) || oMessage.getTarget() === sTarget))) {
           return;
         }
         if (this._isCellInSapUiTableTableBindedJsonModel(oControl)) {
@@ -1470,17 +1585,22 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
           const sColId = oColumn.getId();
           const oBindingInfo = oTable.getBindingInfo("rows");
           const sTableModelName = "model" in oBindingInfo ? String(oBindingInfo.model) : undefined;
-          const sRowBindingPath = oRow.getCells()[iVisibledColIndex].getBindingContext(sTableModelName).getPath();
-          const oInvalidRowCol = aInvalidRowCols.find(oInvalidRowCol => oInvalidRowCol.rowPath === sRowBindingPath && oInvalidRowCol.columnId === sColId);
-          if (oInvalidRowCol) {
-            // エラーがまだ残っている場合は、残っているエラーのメッセージに変更する。
-            this._setValueState(oControl, ValueState.Error, oInvalidRowCol.message);
-            return;
+          const oCell = oRow.getCells()[iVisibledColIndex];
+          const oContext = oCell?.getBindingContext(sTableModelName);
+          const sRowBindingContextPath = oContext?.getPath();
+          if (sRowBindingContextPath) {
+            const oInvalidRowCol = aInvalidRowCols.find(oInvalidRowCol => oInvalidRowCol.rowPath === sRowBindingContextPath && oInvalidRowCol.columnId === sColId);
+            if (oInvalidRowCol) {
+              // エラーがまだ残っている場合は、残っているエラーのメッセージに変更する。
+              this._setValueState(oControl, ValueState.Error, oInvalidRowCol.message);
+              return;
+            }
           }
         }
         this._setValueState(oControl, ValueState.None, null);
       }, 1);
     }
+
     /**
      * oElement が sParentControlId のコントロール自身もしくはその子供かどうか判定する。
      * 
@@ -1492,15 +1612,15 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       if (oElement.getId() === sParentControlId) {
         return true;
       }
-      let oTargetControl = oElement;
-      while (oTargetControl.getParent()) {
-        if (oTargetControl.getParent().getId() === sParentControlId) {
+      let currentElement = oElement;
+      while (currentElement = currentElement.getParent()) {
+        if (currentElement.getId() === sParentControlId) {
           return true;
         }
-        oTargetControl = oTargetControl.getParent();
       }
       return false;
     }
+
     /**
      * oControlOrAControls に対応する {@link https://sdk.openui5.org/api/sap.ui.core.message.Message | Message} の target 文字列を返す。
      * 
@@ -1539,13 +1659,15 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         if (oControl.getBindingInfo("text")) {
           return oControl.getId() + "/text";
         }
+        // バインドされていない場合
         return undefined;
       });
-      if (aTargets.length > 0) {
+      if (Array.isArray(oControlOrAControls)) {
         return aTargets;
       }
       return aTargets[0];
     }
+
     /**
      * バインドされているプロパティ名を返します。
      * 
@@ -1610,6 +1732,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       }
       return true;
     }
+
     /**
      * 必須エラーメッセージを返す。
      * 
@@ -1629,6 +1752,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       }
       return this._getResourceText(this.RESOURCE_BUNDLE_KEY_REQUIRED_INPUT, sRequiredInputMessage);
     }
+
     /**
      * リソースバンドルからテキストを取得して返す。リソースバンドルが設定されていない場合は sDefaultText を返す。
      * 
@@ -1637,11 +1761,13 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
      * @returns テキスト
      */
     _getResourceText(sKey, sDefaultText) {
-      if (this._resourceBundle) {
-        return this._resourceBundle.getText(sKey);
+      const sText = this._resourceBundle?.getText(sKey);
+      if (sText !== undefined) {
+        return sText;
       }
       return sDefaultText;
     }
+
     /**
      * oControl のラベルテキストを返す。
      * 
@@ -1699,12 +1825,13 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
       const aLabelId = LabelEnablement.getReferencingLabels(oControl);
       if (aLabelId && aLabelId.length > 0) {
         const oLabel = ElementRegistry.get(aLabelId[0]);
-        if ("getText" in oLabel && typeof oLabel.getText === "function") {
+        if (oLabel && "getText" in oLabel && typeof oLabel.getText === "function") {
           return oLabel.getText();
         }
       }
       return undefined;
     }
+
     /**
      * {@link https://sdk.openui5.org/api/sap.ui.core.message.MessageManager | MessageManager} にメッセージを追加する。
      *
@@ -1743,6 +1870,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         validateFunctionId: sValidateFunctionId || ""
       }));
     }
+
     /**
      * {@link https://sdk.openui5.org/api/sap.ui.core.message.MessageManager | MessageManager} にメッセージを追加する。
      *
@@ -1764,6 +1892,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         validateFunctionId: sValidateFunctionId || ""
       }));
     }
+
     /**
      * 引数のコントロールに {@link https://sdk.openui5.org/api/sap.ui.core.ValueState | ValueState} と ValueStateText をセットする。
      *
@@ -1784,6 +1913,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
         oControl.setValueStateText(sText);
       }
     }
+
     /**
      * 本 Validator によりエラーステートをセットされているかを判定する。
      * 
@@ -1793,6 +1923,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
     _isSetValueStateError(oElement) {
       return oElement.data(this._CUSTOM_DATA_KEY_FOR_IS_SET_VALUE_STATE_ERROR) === "true";
     }
+
     /**
      * 本 Validator によりエラーステートをセットしたとマークする。
      * 
@@ -1801,6 +1932,7 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
     _markSetValueStateError(oElement) {
       oElement.data(this._CUSTOM_DATA_KEY_FOR_IS_SET_VALUE_STATE_ERROR, "true");
     }
+
     /**
      * 本 Validator によりエラーステートをセットしたとマークしていたのを外す。
      * 
@@ -1819,24 +1951,32 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
    */
   const _ValidatorMessage = Message.extend("learnin.ui5.validator.Validator._ValidatorMessage", {
     constructor: function _constructor(mParameters) {
+      let aOriginalTargets = [];
       if (mParameters && Array.isArray(mParameters.target)) {
         if (!Message.prototype.getTargets) {
           // Message の target の配列サポートは UI5 1.79からなので、getTargets メソッドがない場合は、独自に配列を保持する。
-          const aTargets = mParameters.target;
+          aOriginalTargets = mParameters.target.filter(t => t !== undefined);
           if (mParameters.target.length > 0) {
             mParameters.target = mParameters.target[0];
           } else {
             delete mParameters.target;
           }
-          Message.prototype.constructor.call(this, mParameters);
-          this.targets = aTargets;
-        } else {
-          Message.prototype.constructor.call(this, mParameters);
         }
-      } else {
-        Message.prototype.constructor.call(this, mParameters);
       }
+      Message.prototype.constructor.call(this, {
+        message: mParameters?.message,
+        type: mParameters?.type,
+        additionalText: mParameters?.additionalText,
+        processor: mParameters?.processor,
+        target: Array.isArray(mParameters?.target) ? mParameters?.target.filter(t => t !== undefined) : mParameters?.target,
+        fullTarget: mParameters?.fullTarget
+      });
+      this.targets = [];
       this.validationErrorControlIds = [];
+      this.validateFunctionId = "";
+      if (aOriginalTargets.length > 0) {
+        this.targets = aOriginalTargets;
+      }
       if (mParameters && mParameters.validationErrorControlIds && Array.isArray(mParameters.validationErrorControlIds) && mParameters.validationErrorControlIds.length > 0) {
         this.validationErrorControlIds = mParameters.validationErrorControlIds;
 
@@ -1848,7 +1988,6 @@ sap.ui.define(["sap/base/util/deepExtend", "sap/base/util/uid", "sap/m/CheckBox"
           this.addControlId(mParameters.validationErrorControlIds[0]);
         }
       }
-      this.validateFunctionId = "";
       if (mParameters && mParameters.validateFunctionId) {
         this.validateFunctionId = mParameters.validateFunctionId;
       }
