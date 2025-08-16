@@ -292,7 +292,7 @@ export default class Validator extends BaseObject {
 		if (this._useFocusoutValidation) {
 			this._attachValidator(oTargetRootControl);
 		}
-		return this._validate(oTargetRootControl, option.isDoConstraintsValidation);
+		return this._validate(oTargetRootControl, option.isDoConstraintsValidation, []);
 	}
 
 	/**
@@ -965,9 +965,18 @@ export default class Validator extends BaseObject {
 	 *
 	 * @param oTargetRootControl - 検証対象のコントロールもしくはそれを含むコンテナ
 	 * @param isDoConstraintsValidation - UI5 標準の constraints バリデーションも実行するか
+	 * @param aDoneTargetControlIds - すでに検証済みのコントロールIDの配列
 	 * @returns true: valid, false: invalid
 	 */
-	private _validate(oTargetRootControl: ValidateTargetControlOrContainer, isDoConstraintsValidation: boolean): boolean {
+	private _validate(oTargetRootControl: ValidateTargetControlOrContainer, isDoConstraintsValidation: boolean, aDoneTargetControlIds: string[]): boolean {
+		// コントロールのアグリゲーションを再帰的に処理すると、あるアグリゲーションプロパティのコントロールと、別のアグリゲーションプロパティの子コントロールが同じコントロールになる場合があるため
+		// 処理済のコントロールの場合はスキップする。
+		if (aDoneTargetControlIds.includes(oTargetRootControl.getId())) {
+			return true;
+		} else {
+			aDoneTargetControlIds.push(oTargetRootControl.getId());
+		}
+
 		let isValid = true;
 		const sTargetRootControlId = oTargetRootControl.getId();
 
@@ -1004,7 +1013,7 @@ export default class Validator extends BaseObject {
 						const aCellControls = aRows[i].getCells();
 						if (aCellControls) {
 							for (let j = 0; j < aCellControls.length; j++) {
-								if (!this._validate(aCellControls[j], isDoConstraintsValidation)) {
+								if (!this._validate(aCellControls[j], isDoConstraintsValidation, aDoneTargetControlIds)) {
 									isValid = false;
 								}
 							}
@@ -1122,7 +1131,7 @@ export default class Validator extends BaseObject {
 							oControlAggregation instanceof FormContainer ||
 							oControlAggregation instanceof FormElement ||
 							oControlAggregation instanceof IconTabFilter) {
-							if (!this._validate(oControlAggregation, isDoConstraintsValidation)) {
+							if (!this._validate(oControlAggregation, isDoConstraintsValidation, aDoneTargetControlIds)) {
 								isValid = false;
 							}
 						}
@@ -1131,7 +1140,7 @@ export default class Validator extends BaseObject {
 					aControlAggregation instanceof FormContainer ||
 					aControlAggregation instanceof FormElement ||
 					aControlAggregation instanceof IconTabFilter) {
-					if (!this._validate(aControlAggregation, isDoConstraintsValidation)) {
+					if (!this._validate(aControlAggregation, isDoConstraintsValidation, aDoneTargetControlIds)) {
 						isValid = false;
 					}
 				}
