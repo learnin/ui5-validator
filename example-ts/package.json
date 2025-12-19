@@ -1,0 +1,30 @@
+{
+	"name": "ui5-validator-example-ts",
+	"version": "1.0.1",
+	"private": true,
+	"description": "Example application to showcase the consumption of @learnin/ui5-validator.",
+	"author": "Manabu Inoue",
+	"license": "Apache-2.0",
+	"scripts": {
+		"start-dev": "ui5 serve -o index.html",
+		"start": "cpx \"node_modules/@learnin/ui5-validator/dist/resources/**/*\" webapp/libs -Cv && ui5 serve -o index.html",
+		"build": "rimraf dist && ui5 build -a --include-task=generateManifestBundle generateCachebusterInfo --exclude-dependency=ui5-lib-learnin.ui5.validator",
+		"it": "cpx \"node_modules/@learnin/ui5-validator/dist/resources/**/*\" webapp/libs -Cv && ui5 serve -o test/integration/opaTests.qunit.html"
+	},
+	"devDependencies": {
+		"@sap/ux-ui5-tooling": "1.20.0",
+		"@ui5/cli": "4.0.38",
+		"cpx": "^1.5.0",
+		"rimraf": "6.1.2",
+		"typescript": "5.0.4",
+		"ui5-tooling-transpile": "3.10.0"
+	},
+	"dependencies": {
+		"@learnin/ui5-validator": "1.0.1"
+	},
+	"ui5": {
+		"dependencies": [
+			"@learnin/ui5-validator"
+		]
+	}
+}
